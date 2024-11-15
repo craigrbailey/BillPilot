@@ -1,82 +1,76 @@
-import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Drawer,
   List,
   ListItem,
   ListItemIcon,
   ListItemText,
-  Switch,
+  IconButton,
   Box,
-  Typography,
+  useTheme,
+  Divider,
+  Tooltip,
 } from '@mui/material';
 import {
+  ChevronLeft as ChevronLeftIcon,
   Dashboard as DashboardIcon,
   Receipt as ReceiptIcon,
-  Settings as SettingsIcon,
-  DarkMode as DarkModeIcon,
-  AttachMoney as IncomeIcon,
+  AttachMoney as AttachMoneyIcon,
   Category as CategoryIcon,
+  Settings as SettingsIcon,
+  Logout as LogoutIcon,
+  Payment as PaymentIcon,
 } from '@mui/icons-material';
+import { Link, useLocation } from 'react-router-dom';
 
-const Sidebar = ({ 
-  mobileOpen, 
-  handleDrawerToggle, 
-  darkMode, 
-  onUpdateSettings,
-  onLogout 
-}) => {
-  const navigate = useNavigate();
+const drawerWidth = 240;
+
+const Sidebar = ({ mobileOpen, handleDrawerToggle, onLogout }) => {
+  const theme = useTheme();
   const location = useLocation();
-  const drawerWidth = 240;
 
   const menuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
     { text: 'Bills', icon: <ReceiptIcon />, path: '/bills' },
-    { text: 'Income', icon: <IncomeIcon />, path: '/income' },
+    { text: 'Income', icon: <AttachMoneyIcon />, path: '/income' },
     { text: 'Categories', icon: <CategoryIcon />, path: '/categories' },
+    { text: 'Payments', icon: <PaymentIcon />, path: '/payments' },
     { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
   ];
 
-  const handleDarkModeChange = async (e) => {
-    try {
-      await onUpdateSettings({ darkMode: e.target.checked });
-    } catch (error) {
-      console.error('Failed to update dark mode:', error);
-    }
-  };
-
   const drawer = (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Box sx={{ p: 2 }}>
-        <Typography variant="h6" component="div">
-          Bill Tracker
-        </Typography>
-      </Box>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <List>
         {menuItems.map((item) => (
           <ListItem
             button
             key={item.text}
-            onClick={() => navigate(item.path)}
+            component={Link}
+            to={item.path}
             selected={location.pathname === item.path}
+            sx={{
+              '&.Mui-selected': {
+                backgroundColor: theme.palette.action.selected,
+                '&:hover': {
+                  backgroundColor: theme.palette.action.hover,
+                },
+              },
+            }}
           >
             <ListItemIcon>{item.icon}</ListItemIcon>
             <ListItemText primary={item.text} />
           </ListItem>
         ))}
       </List>
-      <Box sx={{ mt: 'auto', p: 2 }}>
-        <ListItem>
+      <Box sx={{ flexGrow: 1 }} />
+      <Divider />
+      <List>
+        <ListItem button onClick={onLogout}>
           <ListItemIcon>
-            <DarkModeIcon />
+            <LogoutIcon />
           </ListItemIcon>
-          <ListItemText primary="Dark Mode" />
-          <Switch
-            checked={darkMode || false}
-            onChange={handleDarkModeChange}
-          />
+          <ListItemText primary="Logout" />
         </ListItem>
-      </Box>
+      </List>
     </Box>
   );
 
@@ -85,6 +79,24 @@ const Sidebar = ({
       component="nav"
       sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
     >
+      <Drawer
+        variant="temporary"
+        anchor="left"
+        open={mobileOpen}
+        onClose={handleDrawerToggle}
+        ModalProps={{
+          keepMounted: true, // Better open performance on mobile.
+        }}
+        sx={{
+          display: { xs: 'block', sm: 'none' },
+          '& .MuiDrawer-paper': {
+            boxSizing: 'border-box',
+            width: drawerWidth,
+          },
+        }}
+      >
+        {drawer}
+      </Drawer>
       <Drawer
         variant="permanent"
         sx={{

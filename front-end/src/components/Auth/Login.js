@@ -20,9 +20,15 @@ const Login = ({ onLogin }) => {
     e.preventDefault();
     try {
       const data = await api.login(email, password);
+      
+      // Store token and user data
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
+      
+      // Update app state
       onLogin(data.user);
+      
+      // Navigate to bills page
       navigate('/bills');
     } catch (err) {
       setError(err.message);
@@ -36,37 +42,51 @@ const Login = ({ onLogin }) => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+        p: 2,
       }}
     >
-      <Paper sx={{ p: 4, maxWidth: 400, width: '100%' }}>
-        <Typography variant="h5" gutterBottom>
+      <Paper
+        sx={{
+          p: 4,
+          maxWidth: 400,
+          width: '100%',
+        }}
+      >
+        <Typography variant="h5" gutterBottom align="center">
           Login
         </Typography>
+
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>
             {error}
           </Alert>
         )}
+
         <form onSubmit={handleSubmit}>
           <TextField
+            fullWidth
             label="Email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            fullWidth
+            margin="normal"
             required
-            sx={{ mb: 2 }}
           />
           <TextField
+            fullWidth
             label="Password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            fullWidth
+            margin="normal"
             required
-            sx={{ mb: 3 }}
           />
-          <Button type="submit" variant="contained" fullWidth>
+          <Button
+            fullWidth
+            type="submit"
+            variant="contained"
+            sx={{ mt: 3 }}
+          >
             Login
           </Button>
         </form>

@@ -8,6 +8,7 @@ import Settings from '../Pages/Settings';
 import Income from '../Pages/Income';
 import Dashboard from '../Pages/Dashboard';
 import Categories from '../Pages/Categories';
+import PaymentHistory from '../Pages/PaymentHistory';
 
 const Layout = ({ user, onLogout, onUpdateSettings }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -61,6 +62,7 @@ const Layout = ({ user, onLogout, onUpdateSettings }) => {
               />
             } 
           />
+          <Route path="/payments" element={<PaymentHistory />} />
         </Routes>
       </Box>
     </Box>

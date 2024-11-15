@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -28,18 +28,41 @@ const DAYS_OF_WEEK = [
 ];
 
 const IncomeDialog = ({ open, onClose, onSubmit, initialData }) => {
-  const [formData, setFormData] = useState(
-    initialData || {
-      name: '',
-      amount: '',
-      frequency: 'ONE_TIME',
-      dayOfWeek: null,
-      dayOfMonth: null,
-      startDate: new Date(),
-      isRecurring: false,
-    }
-  );
+  const [formData, setFormData] = useState({
+    name: '',
+    amount: '',
+    frequency: 'ONE_TIME',
+    startDate: new Date(),
+    nextPayDate: new Date(),
+    isRecurring: false,
+    dayOfWeek: null,
+    dayOfMonth: null,
+    notes: '',
+  });
   const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (initialData) {
+      setFormData({
+        ...initialData,
+        startDate: new Date(initialData.startDate),
+        nextPayDate: new Date(initialData.nextPayDate),
+        notes: initialData.notes || '',
+      });
+    } else {
+      setFormData({
+        name: '',
+        amount: '',
+        frequency: 'ONE_TIME',
+        startDate: new Date(),
+        nextPayDate: new Date(),
+        isRecurring: false,
+        dayOfWeek: null,
+        dayOfMonth: null,
+        notes: '',
+      });
+    }
+  }, [initialData]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -71,17 +94,15 @@ const IncomeDialog = ({ open, onClose, onSubmit, initialData }) => {
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle>{initialData ? 'Edit Income' : 'Add Income'}</DialogTitle>
       <form onSubmit={handleSubmit}>
-        <DialogTitle>
-          {initialData ? 'Edit Income' : 'Add New Income'}
-        </DialogTitle>
         <DialogContent>
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
+            {error && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {error}
+              </Alert>
+            )}
             <TextField
               name="name"
               label="Income Name"
@@ -185,6 +206,17 @@ const IncomeDialog = ({ open, onClose, onSubmit, initialData }) => {
                 label="Recurring Income"
               />
             )}
+
+            <TextField
+              fullWidth
+              label="Notes"
+              name="notes"
+              value={formData.notes}
+              onChange={handleChange}
+              multiline
+              rows={4}
+              placeholder="Add any notes about this income..."
+            />
           </Box>
         </DialogContent>
         <DialogActions>

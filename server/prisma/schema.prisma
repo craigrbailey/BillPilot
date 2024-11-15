@@ -27,12 +27,19 @@ model User {
 }
 
 model Settings {
-  id        Int      @id @default(autoincrement())
-  darkMode  Boolean  @default(false)
-  user      User     @relation(fields: [userId], references: [id])
-  userId    Int      @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              Int       @id @default(autoincrement())
+  darkMode        Boolean   @default(false)
+  user            User      @relation(fields: [userId], references: [id])
+  userId          Int       @unique
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  pushoverToken   String?
+  pushoverUser    String?
+  pushbulletToken String?
+  discordWebhook  String?
+  notifyOnDue     Boolean   @default(true)
+  notifyDaysBefore Int      @default(1)
+  notifyOnPayment Boolean   @default(true)
 }
 
 model Session {
@@ -50,15 +57,20 @@ model Bill {
   name        String
   amount      Float
   dueDate     DateTime
-  category    Category  @relation(fields: [categoryId], references: [id])
-  categoryId  Int
   balance     Float?
-  isPaid      Boolean   @default(false)
-  history     Payment[]
-  user        User      @relation(fields: [userId], references: [id])
+  categoryId  Int
   userId      Int
+  notes       String?
+  category    Category  @relation(fields: [categoryId], references: [id])
+  user        User      @relation(fields: [userId], references: [id])
+  history     Payment[]
+  isPaid      Boolean   @default(false)
+  paidDate    DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  parentId    Int?
+  isRecurring Boolean   @default(false)
+  frequency   String    @default("ONE_TIME")
 }
 
 model Category {
@@ -74,25 +86,27 @@ model Payment {
   id        Int      @id @default(autoincrement())
   amount    Float
   paidDate  DateTime @default(now())
-  bill      Bill     @relation(fields: [billId], references: [id])
+  bill      Bill     @relation(fields: [billId], references: [id], onDelete: Cascade)
   billId    Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model Income {
-  id            Int           @id @default(autoincrement())
+  id            Int             @id @default(autoincrement())
   name          String
   amount        Float
   frequency     IncomeFrequency @default(ONE_TIME)
-  dayOfWeek     Int?         // 0-6 for weekly (Sunday = 0)
-  dayOfMonth    Int?         // 1-31 for monthly
+  dayOfWeek     Int?           // 0-6 for weekly (Sunday = 0)
+  dayOfMonth    Int?           // 1-31 for monthly
   startDate     DateTime
-  isRecurring   Boolean      @default(false)
+  isRecurring   Boolean        @default(false)
   lastPaid      DateTime?
   nextPayDate   DateTime
-  user          User         @relation(fields: [userId], references: [id])
+  notes         String?
+  user          User           @relation(fields: [userId], references: [id])
   userId        Int
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  parentId      Int?
 } 

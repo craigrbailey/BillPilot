@@ -6,6 +6,7 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import Layout from './components/Layout/Layout';
 import Login from './components/Auth/Login';
 import * as api from './utils/api';
+import { NotificationProvider } from './contexts/NotificationContext';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -18,6 +19,20 @@ function App() {
     }
     setLoading(false);
   }, []);
+
+  useEffect(() => {
+    const checkRecurring = async () => {
+      if (user) {
+        try {
+          await api.checkRecurringItems();
+        } catch (error) {
+          console.error('Error checking recurring items:', error);
+        }
+      }
+    };
+
+    checkRecurring();
+  }, [user]);
 
   const theme = createTheme({
     palette: {
@@ -53,40 +68,42 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <LocalizationProvider dateAdapter={AdapterDateFns}>
-        <BrowserRouter>
-          <Routes>
-            <Route
-              path="/login"
-              element={
-                user ? (
-                  <Navigate to="/bills" replace />
-                ) : (
-                  <Login onLogin={handleLogin} />
-                )
-              }
-            />
-            <Route
-              path="/*"
-              element={
-                user ? (
-                  <Layout
-                    user={user}
-                    onLogout={handleLogout}
-                    onUpdateSettings={(settings) => {
-                      const updatedUser = { ...user, settings };
-                      setUser(updatedUser);
-                      localStorage.setItem('user', JSON.stringify(updatedUser));
-                    }}
-                  />
-                ) : (
-                  <Navigate to="/login" replace />
-                )
-              }
-            />
-          </Routes>
-        </BrowserRouter>
-      </LocalizationProvider>
+      <NotificationProvider>
+        <LocalizationProvider dateAdapter={AdapterDateFns}>
+          <BrowserRouter>
+            <Routes>
+              <Route
+                path="/login"
+                element={
+                  user ? (
+                    <Navigate to="/bills" replace />
+                  ) : (
+                    <Login onLogin={handleLogin} />
+                  )
+                }
+              />
+              <Route
+                path="/*"
+                element={
+                  user ? (
+                    <Layout
+                      user={user}
+                      onLogout={handleLogout}
+                      onUpdateSettings={(settings) => {
+                        const updatedUser = { ...user, settings };
+                        setUser(updatedUser);
+                        localStorage.setItem('user', JSON.stringify(updatedUser));
+                      }}
+                    />
+                  ) : (
+                    <Navigate to="/login" replace />
+                  )
+                }
+              />
+            </Routes>
+          </BrowserRouter>
+        </LocalizationProvider>
+      </NotificationProvider>
     </ThemeProvider>
   );
 }

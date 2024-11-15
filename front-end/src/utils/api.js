@@ -1,4 +1,13 @@
+import axios from 'axios';
+
 const API_BASE_URL = 'http://localhost:3000';
+
+// Function to handle unauthorized/forbidden access
+const handleAuthError = () => {
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  window.location.href = '/login';
+};
 
 const getHeaders = () => {
   const token = localStorage.getItem('token');
@@ -8,197 +17,199 @@ const getHeaders = () => {
   };
 };
 
-// Auth
+// Helper function to handle API responses
+const handleResponse = async (response) => {
+  if (response.status === 401 || response.status === 403) {
+    handleAuthError();
+    throw new Error('Authentication required');
+  }
+
+  const data = await response.json();
+  if (!response.ok) {
+    if (data.error === 'Invalid token') {
+      handleAuthError();
+      throw new Error('Authentication required');
+    }
+    throw new Error(data.error || 'API request failed');
+  }
+  return data;
+};
+
+// Global fetch wrapper with error handling
+const fetchWithAuth = async (url, options = {}) => {
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        ...getHeaders(),
+        ...(options.headers || {}),
+      },
+    });
+    return handleResponse(response);
+  } catch (error) {
+    if (error.message === 'Authentication required') {
+      handleAuthError();
+    }
+    throw error;
+  }
+};
+
+// Auth endpoints - Don't use fetchWithAuth for login/register
 export const login = async (email, password) => {
-  const response = await fetch(`${API_BASE_URL}/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
-  });
-  if (!response.ok) throw new Error('Invalid credentials');
-  return response.json();
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || 'Login failed');
+    }
+
+    // Store the token immediately
+    if (data.token) {
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+    }
+
+    return data;
+  } catch (error) {
+    throw new Error(error.message || 'Login failed');
+  }
 };
 
 export const register = async (email, password) => {
-  const response = await fetch(`${API_BASE_URL}/auth/register`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
-  });
-  if (!response.ok) throw new Error('Registration failed');
-  return response.json();
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || 'Registration failed');
+    }
+    return data;
+  } catch (error) {
+    throw new Error(error.message || 'Registration failed');
+  }
 };
 
 export const logout = async () => {
-  const response = await fetch(`${API_BASE_URL}/auth/logout`, {
+  return fetchWithAuth(`${API_BASE_URL}/auth/logout`, {
     method: 'POST',
-    headers: getHeaders(),
   });
-  if (!response.ok) throw new Error('Logout failed');
-  return response.json();
 };
 
-// Settings
-export const updateSettings = async (settings) => {
-  const response = await fetch(`${API_BASE_URL}/settings`, {
-    method: 'PUT',
-    headers: getHeaders(),
-    body: JSON.stringify(settings),
-  });
-  if (!response.ok) throw new Error('Failed to update settings');
-  return response.json();
-};
-
-// Categories
-export const fetchCategories = async () => {
-  const response = await fetch(`${API_BASE_URL}/categories`, {
-    headers: getHeaders(),
-  });
-  if (!response.ok) throw new Error('Failed to fetch categories');
-  return response.json();
-};
-
-export const createCategory = async (categoryData) => {
-  const response = await fetch(`${API_BASE_URL}/categories`, {
-    method: 'POST',
-    headers: getHeaders(),
-    body: JSON.stringify(categoryData),
-  });
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to create category');
-  }
-  return response.json();
-};
-
-export const updateCategory = async (id, categoryData) => {
-  const response = await fetch(`${API_BASE_URL}/categories/${id}`, {
-    method: 'PUT',
-    headers: getHeaders(),
-    body: JSON.stringify(categoryData),
-  });
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to update category');
-  }
-  return response.json();
-};
-
-export const deleteCategory = async (id) => {
-  const response = await fetch(`${API_BASE_URL}/categories/${id}`, {
-    method: 'DELETE',
-    headers: getHeaders(),
-  });
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to delete category');
-  }
-  return response.json();
-};
-
-// Bills
+// Bills endpoints
 export const fetchBills = async () => {
-  const response = await fetch(`${API_BASE_URL}/bills`, {
-    headers: getHeaders(),
-  });
-  if (!response.ok) throw new Error('Failed to fetch bills');
-  return response.json();
+  return fetchWithAuth(`${API_BASE_URL}/bills`);
 };
 
 export const createBill = async (billData) => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/bills`, {
-      method: 'POST',
-      headers: getHeaders(),
-      body: JSON.stringify(billData),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.error || 'Failed to create bill');
-    }
-
-    return data;
-  } catch (error) {
-    console.error('API Error:', error);
-    throw error;
-  }
+  return fetchWithAuth(`${API_BASE_URL}/bills`, {
+    method: 'POST',
+    body: JSON.stringify(billData),
+  });
 };
 
 export const updateBill = async (id, billData) => {
-  const response = await fetch(`${API_BASE_URL}/bills/${id}`, {
+  return fetchWithAuth(`${API_BASE_URL}/bills/${id}`, {
     method: 'PUT',
-    headers: getHeaders(),
     body: JSON.stringify(billData),
   });
-  if (!response.ok) throw new Error('Failed to update bill');
-  return response.json();
 };
 
-export const deleteBill = async (id) => {
-  const response = await fetch(`${API_BASE_URL}/bills/${id}`, {
+export const deleteBill = async (id, deleteAll = false) => {
+  return fetchWithAuth(`${API_BASE_URL}/bills/${id}?deleteAll=${deleteAll}`, {
     method: 'DELETE',
-    headers: getHeaders(),
   });
-  if (!response.ok) throw new Error('Failed to delete bill');
-  return response.json();
 };
 
-// Income
-export const fetchIncomes = async () => {
-  const response = await fetch(`${API_BASE_URL}/income`, {
-    headers: getHeaders(),
+export const markBillPaid = async (billId, paidDate) => {
+  return fetchWithAuth(`${API_BASE_URL}/bills/${billId}/pay`, {
+    method: 'PUT',
+    body: JSON.stringify({ paidDate }),
   });
-  if (!response.ok) throw new Error('Failed to fetch incomes');
-  return response.json();
+};
+
+// Income endpoints
+export const fetchIncomes = async () => {
+  return fetchWithAuth(`${API_BASE_URL}/income`);
 };
 
 export const createIncome = async (incomeData) => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/income`, {
-      method: 'POST',
-      headers: getHeaders(),
-      body: JSON.stringify(incomeData),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.error || 'Failed to create income');
-    }
-
-    return data;
-  } catch (error) {
-    console.error('API Error:', error);
-    throw error;
-  }
+  return fetchWithAuth(`${API_BASE_URL}/income`, {
+    method: 'POST',
+    body: JSON.stringify(incomeData),
+  });
 };
 
 export const updateIncome = async (id, incomeData) => {
-  const response = await fetch(`${API_BASE_URL}/income/${id}`, {
+  return fetchWithAuth(`${API_BASE_URL}/income/${id}`, {
     method: 'PUT',
-    headers: getHeaders(),
     body: JSON.stringify(incomeData),
   });
-  if (!response.ok) throw new Error('Failed to update income');
-  return response.json();
 };
 
 export const deleteIncome = async (id) => {
-  const response = await fetch(`${API_BASE_URL}/income/${id}`, {
+  return fetchWithAuth(`${API_BASE_URL}/income/${id}`, {
     method: 'DELETE',
-    headers: getHeaders(),
   });
-  if (!response.ok) throw new Error('Failed to delete income');
-  return response.json();
 };
 
-export const markIncomePaid = async (id) => {
-  const response = await fetch(`${API_BASE_URL}/income/${id}/paid`, {
+// Categories endpoints
+export const fetchCategories = async () => {
+  return fetchWithAuth(`${API_BASE_URL}/categories`);
+};
+
+export const createCategory = async (categoryData) => {
+  return fetchWithAuth(`${API_BASE_URL}/categories`, {
     method: 'POST',
-    headers: getHeaders(),
+    body: JSON.stringify(categoryData),
   });
-  if (!response.ok) throw new Error('Failed to mark income as paid');
-  return response.json();
+};
+
+export const updateCategory = async (id, categoryData) => {
+  return fetchWithAuth(`${API_BASE_URL}/categories/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(categoryData),
+  });
+};
+
+export const deleteCategory = async (id) => {
+  return fetchWithAuth(`${API_BASE_URL}/categories/${id}`, {
+    method: 'DELETE',
+  });
+};
+
+// Settings endpoints
+export const fetchSettings = async () => {
+  return fetchWithAuth(`${API_BASE_URL}/settings`);
+};
+
+export const updateSettings = async (settings) => {
+  return fetchWithAuth(`${API_BASE_URL}/settings`, {
+    method: 'PUT',
+    body: JSON.stringify(settings),
+  });
+};
+
+// Add function to fetch payment history
+export const fetchPaymentHistory = async () => {
+  return fetchWithAuth(`${API_BASE_URL}/bills/payments`);
+};
+
+export const deletePayment = async (paymentId) => {
+  return fetchWithAuth(`${API_BASE_URL}/bills/payments/${paymentId}`, {
+    method: 'DELETE',
+  });
+};
+
+// Add to your existing API functions
+export const checkRecurringItems = async () => {
+  return fetchWithAuth(`${API_BASE_URL}/check-recurring`);
 }; 

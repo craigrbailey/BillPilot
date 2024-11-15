@@ -20,6 +20,8 @@
     "date-fns": "^2.30.0",
     "dotenv": "^16.x.x",
     "express": "^4.x.x",
+    "jsonwebtoken": "^9.0.2",
+    "node-cache": "^5.1.2",
     "uuid": "^11.0.3"
   },
   "devDependencies": {
