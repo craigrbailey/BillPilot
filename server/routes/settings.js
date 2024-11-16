@@ -74,4 +74,62 @@ router.put('/', authenticateToken, async (req, res) => {
   }
 });
 
+// Add routes for email recipients
+router.post('/email-recipients', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { email, name } = req.body;
+
+    const settings = await prisma.settings.findUnique({
+      where: { userId },
+    });
+
+    if (!settings) {
+      return res.status(404).json({ error: 'Settings not found' });
+    }
+
+    const recipient = await prisma.emailRecipient.create({
+      data: {
+        email,
+        name,
+        settingsId: settings.id,
+      },
+    });
+
+    res.json(recipient);
+  } catch (error) {
+    console.error('Error adding email recipient:', error);
+    res.status(500).json({ error: 'Failed to add email recipient' });
+  }
+});
+
+router.delete('/email-recipients/:id', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const recipientId = parseInt(req.params.id);
+
+    const recipient = await prisma.emailRecipient.findFirst({
+      where: {
+        id: recipientId,
+        settings: {
+          userId,
+        },
+      },
+    });
+
+    if (!recipient) {
+      return res.status(404).json({ error: 'Recipient not found' });
+    }
+
+    await prisma.emailRecipient.delete({
+      where: { id: recipientId },
+    });
+
+    res.json({ message: 'Recipient deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting email recipient:', error);
+    res.status(500).json({ error: 'Failed to delete email recipient' });
+  }
+});
+
 export default router; 

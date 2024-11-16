@@ -40,6 +40,9 @@ import {
   ChevronRight as ChevronRightIcon,
 } from '@mui/icons-material';
 import { formatAmount } from '../../utils/formatters';
+import BillPaymentDialog from '../Bills/BillPaymentDialog';
+import { CheckCircle as CheckCircleIcon, RadioButtonUnchecked as RadioButtonUncheckedIcon } from '@mui/icons-material';
+import BillUnpayDialog from '../Bills/BillUnpayDialog';
 
 const StyledTooltip = styled(({ className, ...props }) => (
   <Tooltip {...props} classes={{ popper: className }} />
@@ -53,6 +56,58 @@ const StyledTooltip = styled(({ className, ...props }) => (
   },
 }));
 
+const CalendarBillItem = ({ bill, onMarkPaid, onUnpay }) => (
+  <Box
+    sx={{
+      p: 1,
+      mb: 1,
+      height: '60px',
+      borderRadius: 1,
+      bgcolor: 'background.paper',
+      boxShadow: 1,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      position: 'relative',
+    }}
+  >
+    <Box
+      sx={{
+        position: 'absolute',
+        top: 8,
+        right: 8,
+        width: 8,
+        height: 8,
+        borderRadius: '50%',
+        bgcolor: bill.category.color,
+      }}
+    />
+    
+    <Box sx={{ flex: 1 }}>
+      <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }} noWrap>
+        {bill.name}
+      </Typography>
+      <Typography variant="body2" color="error" noWrap>
+        {formatAmount(bill.amount)}
+      </Typography>
+    </Box>
+
+    <Chip
+      label={bill.isPaid ? "Paid" : "Unpaid"}
+      size="small"
+      color={bill.isPaid ? "success" : "warning"}
+      onClick={() => {
+        if (bill.isPaid) {
+          onUnpay(bill);
+        } else {
+          onMarkPaid(bill);
+        }
+      }}
+      sx={{ ml: 1 }}
+    />
+  </Box>
+);
+
 const Dashboard = () => {
   const theme = useTheme();
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -61,6 +116,14 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [paymentDialog, setPaymentDialog] = useState({
+    open: false,
+    bill: null
+  });
+  const [unpayDialog, setUnpayDialog] = useState({
+    open: false,
+    bill: null
+  });
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -137,6 +200,44 @@ const Dashboard = () => {
     return bills
       .filter(bill => new Date(bill.dueDate) > today)
       .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+  };
+
+  const handleMarkAsPaid = (bill) => {
+    setPaymentDialog({
+      open: true,
+      bill: bill
+    });
+  };
+
+  const handlePaymentDialogClose = () => {
+    setPaymentDialog({
+      open: false,
+      bill: null
+    });
+  };
+
+  const handlePaymentSubmit = async (paymentDate) => {
+    try {
+      await api.updateBill(paymentDialog.bill.id, {
+        ...paymentDialog.bill,
+        isPaid: true,
+        paymentDate: paymentDate
+      });
+      fetchData(); // Refresh dashboard data
+      handlePaymentDialogClose();
+    } catch (error) {
+      console.error('Failed to update payment status:', error);
+    }
+  };
+
+  const handleUnpayBill = async (bill) => {
+    try {
+      await api.updateBill(bill.id, { ...bill, isPaid: false, paidDate: null });
+      fetchData();
+      setUnpayDialog({ open: false, bill: null });
+    } catch (error) {
+      console.error('Failed to unmark bill as paid:', error);
+    }
   };
 
   const WeekView = ({ bills, onMarkPaid }) => (
@@ -282,24 +383,51 @@ const Dashboard = () => {
                           borderRadius: 1,
                           bgcolor: 'background.paper',
                           boxShadow: 1,
-                          border: `1px solid ${bill.category.color}`,
                           display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'center',
-                          cursor: 'pointer',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          position: 'relative',
                           '&:hover': {
-                            boxShadow: 3,
-                            transform: 'translateY(-1px)',
+                            boxShadow: 1,
+                            transform: 'none',
                           },
-                          transition: 'all 0.2s',
                         }}
                       >
-                        <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }} noWrap>
-                          {bill.name}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary" noWrap>
-                          {formatAmount(bill.amount)}
-                        </Typography>
+                        <Box
+                          sx={{
+                            position: 'absolute',
+                            top: 8,
+                            right: 8,
+                            width: 8,
+                            height: 8,
+                            borderRadius: '50%',
+                            bgcolor: bill.category.color,
+                          }}
+                        />
+                        
+                        <Box sx={{ flex: 1 }}>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }} noWrap>
+                            {bill.name}
+                          </Typography>
+                          <Typography variant="body2" color="error" noWrap>
+                            {formatAmount(bill.amount)}
+                          </Typography>
+                        </Box>
+
+                        <Chip
+                          label={bill.isPaid ? "Paid" : "Unpaid"}
+                          size="small"
+                          color={bill.isPaid ? "success" : "warning"}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (bill.isPaid) {
+                              setUnpayDialog({ open: true, bill });
+                            } else {
+                              handleMarkAsPaid(bill);
+                            }
+                          }}
+                          sx={{ ml: 1 }}
+                        />
                       </Box>
                     </StyledTooltip>
                   ))}
@@ -337,25 +465,35 @@ const Dashboard = () => {
                           borderRadius: 1,
                           bgcolor: 'background.paper',
                           boxShadow: 1,
-                          border: '1px solid',
-                          borderColor: 'success.main',
                           display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'center',
-                          cursor: 'pointer',
+                          alignItems: 'center',
+                          position: 'relative',
                           '&:hover': {
-                            boxShadow: 3,
-                            transform: 'translateY(-1px)',
+                            boxShadow: 1,
+                            transform: 'none',
                           },
-                          transition: 'all 0.2s',
                         }}
                       >
-                        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: 'success.main' }} noWrap>
-                          {income.name}
-                        </Typography>
-                        <Typography variant="body2" color="success.main" noWrap>
-                          {formatAmount(income.amount)}
-                        </Typography>
+                        <Box
+                          sx={{
+                            position: 'absolute',
+                            top: 8,
+                            right: 8,
+                            width: 8,
+                            height: 8,
+                            borderRadius: '50%',
+                            bgcolor: 'success.main',
+                          }}
+                        />
+                        
+                        <Box sx={{ flex: 1 }}>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }} noWrap>
+                            {income.name}
+                          </Typography>
+                          <Typography variant="body2" color="success.main" noWrap>
+                            {formatAmount(income.amount)}
+                          </Typography>
+                        </Box>
                       </Box>
                     </StyledTooltip>
                   ))}
@@ -720,38 +858,12 @@ const Dashboard = () => {
                     Bills Due
                   </Typography>
                   {getItemsForDate(selectedDate, bills).map((bill) => (
-                    <Box
-                      key={bill.id}
-                      sx={{
-                        p: 1,
-                        mb: 1,
-                        borderRadius: 1,
-                        bgcolor: 'background.paper',
-                        boxShadow: 1,
-                        border: `1px solid ${bill.category.color}`,
-                        opacity: bill.isPaid ? 0.7 : 1,
-                      }}
-                    >
-                      <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                        {bill.name}
-                      </Typography>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Typography variant="caption" color="text.secondary">
-                          {bill.category.name}
-                        </Typography>
-                        <Typography variant="body2" color="error">
-                          {formatAmount(bill.amount)}
-                        </Typography>
-                      </Box>
-                      {bill.isPaid && (
-                        <Chip 
-                          label="Paid" 
-                          size="small" 
-                          color="success" 
-                          sx={{ mt: 0.5 }}
-                        />
-                      )}
-                    </Box>
+                    <CalendarBillItem 
+                      key={bill.id} 
+                      bill={bill}
+                      onMarkPaid={handleMarkAsPaid}
+                      onUnpay={(bill) => setUnpayDialog({ open: true, bill })}
+                    />
                   ))}
                 </>
               )}
@@ -768,23 +880,33 @@ const Dashboard = () => {
                       sx={{
                         p: 1,
                         mb: 1,
+                        height: '60px',
                         borderRadius: 1,
                         bgcolor: 'background.paper',
                         boxShadow: 1,
-                        border: '1px solid',
-                        borderColor: 'success.main',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        position: 'relative',
                       }}
                     >
-                      <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                        {income.name}
-                      </Typography>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Typography variant="caption" color="text.secondary">
-                          {income.frequency === 'ONE_TIME' ? 'Single Payment' : 
-                            income.frequency.charAt(0) + income.frequency.slice(1).toLowerCase().replace('_', ' ')
-                          }
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          top: 8,
+                          right: 8,
+                          width: 8,
+                          height: 8,
+                          borderRadius: '50%',
+                          bgcolor: 'success.main',
+                        }}
+                      />
+                      
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }} noWrap>
+                          {income.name}
                         </Typography>
-                        <Typography variant="body2" color="success.main">
+                        <Typography variant="body2" color="success.main" noWrap>
                           {formatAmount(income.amount)}
                         </Typography>
                       </Box>
@@ -852,27 +974,57 @@ const Dashboard = () => {
                 <Box
                   key={bill.id}
                   sx={{
-                    p: 2,
+                    p: 1,
                     mb: 1,
+                    height: '60px',
                     borderRadius: 1,
                     bgcolor: 'background.paper',
                     boxShadow: 1,
                     display: 'flex',
-                    justifyContent: 'space-between',
                     alignItems: 'center',
+                    justifyContent: 'space-between',
+                    position: 'relative',
                   }}
                 >
-                  <Box>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      top: 8,
+                      right: 8,
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      bgcolor: bill.category.color,
+                    }}
+                  />
+                  
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }} noWrap>
                       {bill.name}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant="body2" color="text.secondary" noWrap>
                       Due: {format(new Date(bill.dueDate), 'MMM dd')}
                     </Typography>
                   </Box>
-                  <Typography variant="h6" color="error">
-                    {formatAmount(bill.amount)}
-                  </Typography>
+
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Typography variant="body2" color="error">
+                      {formatAmount(bill.amount)}
+                    </Typography>
+                    <Chip
+                      label={bill.isPaid ? "Paid" : "Unpaid"}
+                      size="small"
+                      color={bill.isPaid ? "success" : "warning"}
+                      onClick={() => {
+                        if (bill.isPaid) {
+                          setUnpayDialog({ open: true, bill });
+                        } else {
+                          handleMarkAsPaid(bill);
+                        }
+                      }}
+                      sx={{ ml: 1 }}
+                    />
+                  </Box>
                 </Box>
               ))}
             {monthlyBills.filter(bill => !bill.isPaid).length === 0 && (
@@ -923,37 +1075,75 @@ const Dashboard = () => {
               <Box
                 key={income.id}
                 sx={{
-                  p: 2,
+                  p: 1,
                   mb: 1,
+                  height: '60px',
                   borderRadius: 1,
                   bgcolor: 'background.paper',
                   boxShadow: 1,
                   display: 'flex',
-                  justifyContent: 'space-between',
                   alignItems: 'center',
+                  justifyContent: 'space-between',
+                  position: 'relative',
                 }}
               >
-                <Box>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    top: 8,
+                    right: 8,
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    bgcolor: 'success.main',
+                  }}
+                />
+                
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }} noWrap>
                     {income.name}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" color="text.secondary" noWrap>
                     Expected: {format(new Date(income.nextPayDate), 'MMM dd')}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {income.frequency === 'ONE_TIME' ? 'Single Payment' : 
-                      income.frequency.charAt(0) + income.frequency.slice(1).toLowerCase().replace('_', ' ')
-                    }
-                  </Typography>
                 </Box>
-                <Typography variant="h6" color="success.main">
+
+                <Typography variant="body2" color="success.main">
                   {formatAmount(income.amount)}
                 </Typography>
               </Box>
             ))}
+            {monthlyIncomes.length === 0 && (
+              <Typography 
+                variant="body2" 
+                color="text.secondary" 
+                sx={{ 
+                  textAlign: 'center',
+                  fontStyle: 'italic',
+                  mt: 2
+                }}
+              >
+                No expected income
+              </Typography>
+            )}
           </Box>
         </Paper>
       </Box>
+
+      {/* Add Payment Dialog */}
+      <BillPaymentDialog
+        open={paymentDialog.open}
+        bill={paymentDialog.bill}
+        onClose={handlePaymentDialogClose}
+        onSubmit={handlePaymentSubmit}
+      />
+
+      <BillUnpayDialog
+        open={unpayDialog.open}
+        bill={unpayDialog.bill}
+        onClose={() => setUnpayDialog({ open: false, bill: null })}
+        onConfirm={() => handleUnpayBill(unpayDialog.bill)}
+      />
     </Box>
   );
 };

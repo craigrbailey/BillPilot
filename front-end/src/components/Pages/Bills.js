@@ -1,454 +1,316 @@
 import { useState, useEffect } from 'react';
 import {
   Box,
-  TextField,
   Paper,
-  IconButton,
-  Button,
-  CircularProgress,
-  Alert,
-  Tooltip,
-  TableContainer,
-  Table,
-  TableHead,
-  TableRow,
-  TableCell,
-  TableBody,
-  Chip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   Typography,
+  Button,
+  Grid,
+  IconButton,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemSecondaryAction,
+  Chip,
 } from '@mui/material';
 import {
+  Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  Add as AddIcon,
-  CheckCircle as PaidIcon,
 } from '@mui/icons-material';
-import { format } from 'date-fns';
 import * as api from '../../utils/api';
-import BillDialog from '../Bills/BillDialog';
-import { DatePicker } from '@mui/x-date-pickers';
+import { format } from 'date-fns';
 import { formatAmount } from '../../utils/formatters';
-import ConfirmationDialog from '../Common/ConfirmationDialog';
-import { useNotification } from '../../contexts/NotificationContext';
-import BillHistoryPanel from '../Bills/BillHistoryPanel';
+import PayeeDialog from '../Bills/PayeeDialog';
+import BillDialog from '../Bills/BillDialog';
+import BillPaymentDialog from '../Bills/BillPaymentDialog';
+import BillUnpayDialog from '../Bills/BillUnpayDialog';
 
 const Bills = () => {
+  const [payees, setPayees] = useState([]);
   const [bills, setBills] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [categories, setCategories] = useState([]);
+  const [payeeDialog, setPayeeDialog] = useState({ open: false, data: null });
+  const [billDialog, setBillDialog] = useState({ open: false, data: null });
+  const [paymentDialog, setPaymentDialog] = useState({ open: false, bill: null });
+  const [unpayDialog, setUnpayDialog] = useState({ open: false, bill: null });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedBill, setSelectedBill] = useState(null);
-  const [payments, setPayments] = useState([]);
-  const [paymentDate, setPaymentDate] = useState(new Date());
-  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
-  const [selectedBillForPayment, setSelectedBillForPayment] = useState(null);
-  const [deleteDialog, setDeleteDialog] = useState({
-    open: false,
-    billId: null,
-  });
-  const [deletePaymentDialog, setDeletePaymentDialog] = useState({
-    open: false,
-    paymentId: null,
-  });
-  const { showNotification } = useNotification();
-  const [expandedBillId, setExpandedBillId] = useState(null);
-  const [deleteConfirmation, setDeleteConfirmation] = useState({
-    open: false,
-    billId: null,
-    isRecurring: false,
-  });
 
-  const fetchBillsData = async () => {
+  const fetchData = async () => {
     try {
       setLoading(true);
-      const data = await api.fetchBills();
-      setBills(data);
+      const [payeesData, billsData, categoriesData] = await Promise.all([
+        api.fetchPayees(),
+        api.fetchBills(),
+        api.fetchCategories(),
+      ]);
+      setPayees(payeesData);
+      setBills(billsData);
+      setCategories(categoriesData);
+      setError(null);
     } catch (err) {
-      setError(err.message);
+      setError('Failed to load bills data');
+      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchPaymentHistory = async () => {
-    try {
-      const data = await api.fetchPaymentHistory();
-      setPayments(data);
-    } catch (err) {
-      setError('Failed to load payment history');
-    }
-  };
-
   useEffect(() => {
-    fetchBillsData();
-    fetchPaymentHistory();
+    fetchData();
   }, []);
 
-  const handleCreateBill = async (billData) => {
+  const handlePayeeSubmit = async (data) => {
     try {
-      setError(null);
-      await api.createBill(billData);
-      await fetchBillsData();
-      setDialogOpen(false);
-      showNotification('Bill created successfully');
+      if (payeeDialog.data) {
+        await api.updatePayee(payeeDialog.data.id, data);
+      } else {
+        await api.createPayee(data);
+      }
+      fetchData();
+      setPayeeDialog({ open: false, data: null });
     } catch (err) {
-      console.error('Error creating bill:', err);
-      setError(err.message || 'Failed to create bill');
-      showNotification('Failed to create bill', 'error');
+      setError('Failed to save payee');
+      console.error(err);
     }
   };
 
-  const handleUpdateBill = async (billData) => {
+  const handleBillSubmit = async (data) => {
     try {
-      await api.updateBill(selectedBill.id, billData);
-      await fetchBillsData();
-      setDialogOpen(false);
-      setSelectedBill(null);
-      showNotification('Bill updated successfully');
+      if (billDialog.data) {
+        await api.updateBill(billDialog.data.id, data);
+      } else {
+        await api.createBill(data);
+      }
+      fetchData();
+      setBillDialog({ open: false, data: null });
     } catch (err) {
-      setError(err.message);
-      showNotification('Failed to update bill', 'error');
+      setError('Failed to save bill');
+      console.error(err);
     }
   };
 
-  const handleDeleteBill = async (deleteAll = false) => {
-    try {
-      await api.deleteBill(deleteConfirmation.billId, deleteAll);
-      await fetchBillsData();
-      setDeleteConfirmation({ open: false, billId: null, isRecurring: false });
-      showNotification('Bill deleted successfully');
-    } catch (err) {
-      setError(err.message);
-      showNotification('Failed to delete bill', 'error');
+  const handleDeletePayee = async (id) => {
+    if (window.confirm('Are you sure you want to delete this payee? This will also delete all associated bills.')) {
+      try {
+        await api.deletePayee(id);
+        fetchData();
+      } catch (err) {
+        setError('Failed to delete payee');
+        console.error(err);
+      }
     }
   };
 
-  const handleMarkPaid = async (billId) => {
+  const handleDeleteBill = async (id) => {
+    if (window.confirm('Are you sure you want to delete this bill?')) {
+      try {
+        await api.deleteBill(id);
+        fetchData();
+      } catch (err) {
+        setError('Failed to delete bill');
+        console.error(err);
+      }
+    }
+  };
+
+  const handlePaymentSubmit = async (paymentDate) => {
     try {
-      await api.markBillPaid(billId, paymentDate.toISOString());
-      await fetchBillsData();
-      await fetchPaymentHistory();
-      setPaymentDialogOpen(false);
-      setSelectedBillForPayment(null);
-      showNotification('Bill marked as paid');
-    } catch (err) {
+      await api.updateBill(paymentDialog.bill.id, {
+        ...paymentDialog.bill,
+        isPaid: true,
+        paidDate: paymentDate,
+      });
+      fetchData();
+      setPaymentDialog({ open: false, bill: null });
+    } catch (error) {
       setError('Failed to mark bill as paid');
-      showNotification('Failed to mark bill as paid', 'error');
+      console.error(error);
     }
   };
 
-  const handleDeletePayment = async () => {
+  const handleUnpayBill = async (bill) => {
     try {
-      await api.deletePayment(deletePaymentDialog.paymentId);
-      await fetchPaymentHistory();
-      await fetchBillsData();
-      setError(null);
-      setDeletePaymentDialog({ open: false, paymentId: null });
-      showNotification('Payment deleted successfully');
-    } catch (err) {
-      console.error('Failed to delete payment:', err);
-      setError('Failed to delete payment');
-      showNotification('Failed to delete payment', 'error');
+      await api.updateBill(bill.id, { ...bill, isPaid: false, paidDate: null });
+      fetchData();
+      setUnpayDialog({ open: false, bill: null });
+    } catch (error) {
+      setError('Failed to unmark bill as paid');
+      console.error(error);
     }
   };
-
-  const handleOpenDeleteDialog = (billId) => {
-    setDeleteDialog({
-      open: true,
-      billId,
-    });
-  };
-
-  const handleCloseDeleteDialog = () => {
-    setDeleteDialog({
-      open: false,
-      billId: null,
-    });
-  };
-
-  const handleOpenDeletePaymentDialog = (paymentId) => {
-    setDeletePaymentDialog({
-      open: true,
-      paymentId,
-    });
-  };
-
-  const handleCloseDeletePaymentDialog = () => {
-    setDeletePaymentDialog({
-      open: false,
-      paymentId: null,
-    });
-  };
-
-  const filteredBills = bills.filter(bill =>
-    bill.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const PaymentDialog = () => (
-    <Dialog open={paymentDialogOpen} onClose={() => setPaymentDialogOpen(false)}>
-      <DialogTitle>Mark Bill as Paid</DialogTitle>
-      <DialogContent>
-        <Box sx={{ mt: 2 }}>
-          <DatePicker
-            label="Payment Date"
-            value={paymentDate}
-            onChange={(newValue) => setPaymentDate(newValue)}
-            renderInput={(params) => <TextField {...params} fullWidth />}
-            maxDate={new Date()}
-          />
-        </Box>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={() => setPaymentDialogOpen(false)}>Cancel</Button>
-        <Button 
-          onClick={() => handleMarkPaid(selectedBillForPayment.id)}
-          variant="contained"
-        >
-          Confirm Payment
-        </Button>
-      </DialogActions>
-    </Dialog>
-  );
-
-  const handlePaymentClick = (bill) => {
-    setSelectedBillForPayment(bill);
-    setPaymentDate(new Date());
-    setPaymentDialogOpen(true);
-  };
-
-  const handleDeleteClick = (bill) => {
-    if (bill.isRecurring || bill.parentId) {
-      setDeleteConfirmation({
-        open: true,
-        billId: bill.id,
-        isRecurring: true,
-      });
-    } else {
-      setDeleteDialog({
-        open: true,
-        billId: bill.id,
-      });
-    }
-  };
-
-  const RecurringDeleteDialog = () => (
-    <Dialog 
-      open={deleteConfirmation.open} 
-      onClose={() => setDeleteConfirmation({ open: false, billId: null, isRecurring: false })}
-    >
-      <DialogTitle>Delete Recurring Bill</DialogTitle>
-      <DialogContent>
-        <Typography>
-          This is a recurring bill. Would you like to delete just this instance or all recurring instances?
-        </Typography>
-      </DialogContent>
-      <DialogActions>
-        <Button 
-          onClick={() => setDeleteConfirmation({ open: false, billId: null, isRecurring: false })}
-        >
-          Cancel
-        </Button>
-        <Button 
-          onClick={() => handleDeleteBill(false)}
-          color="warning"
-        >
-          Delete This Instance
-        </Button>
-        <Button 
-          onClick={() => handleDeleteBill(true)}
-          color="error"
-        >
-          Delete All Instances
-        </Button>
-      </DialogActions>
-    </Dialog>
-  );
-
-  if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <CircularProgress />
-      </Box>
-    );
-  }
 
   return (
-    <Box sx={{ maxWidth: 1200, margin: '0 auto', p: 3 }}>
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
+    <Box sx={{ p: 3 }}>
+      <Grid container spacing={3} direction="column">
+        {/* Payees Section */}
+        <Grid item xs={12}>
+          <Paper sx={{ p: 2 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="h6">Payees</Typography>
+              <Button
+                startIcon={<AddIcon />}
+                onClick={() => setPayeeDialog({ open: true, data: null })}
+                variant="contained"
+              >
+                Add Payee
+              </Button>
+            </Box>
+            <List>
+              {payees.map((payee) => (
+                <ListItem key={payee.id} divider>
+                  <ListItemText
+                    primary={payee.name}
+                    secondary={
+                      <>
+                        <Typography variant="body2">
+                          Expected: {formatAmount(payee.expectedAmount)} ({payee.frequency.toLowerCase()})
+                        </Typography>
+                        <Typography variant="body2">
+                          Category: {payee.category.name}
+                        </Typography>
+                        <Typography variant="body2">
+                          Started: {format(new Date(payee.startDate), 'MMM dd, yyyy')}
+                        </Typography>
+                      </>
+                    }
+                  />
+                  <ListItemSecondaryAction>
+                    <IconButton
+                      edge="end"
+                      onClick={() => setPayeeDialog({ open: true, data: payee })}
+                    >
+                      <EditIcon />
+                    </IconButton>
+                    <IconButton
+                      edge="end"
+                      onClick={() => handleDeletePayee(payee.id)}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </ListItemSecondaryAction>
+                </ListItem>
+              ))}
+              {payees.length === 0 && (
+                <ListItem>
+                  <ListItemText
+                    secondary="No payees added yet"
+                    sx={{ textAlign: 'center', fontStyle: 'italic' }}
+                  />
+                </ListItem>
+              )}
+            </List>
+          </Paper>
+        </Grid>
 
-      <Box sx={{ mb: 3, display: 'flex', gap: 2 }}>
-        <TextField
-          fullWidth
-          variant="outlined"
-          placeholder="Search bills..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-        <Tooltip title="Add Bill" arrow>
-          <Button
-            variant="contained"
-            onClick={() => {
-              setSelectedBill(null);
-              setDialogOpen(true);
-            }}
-            sx={{ minWidth: 'unset', width: '48px', height: '48px', p: 0 }}
-          >
-            <AddIcon />
-          </Button>
-        </Tooltip>
-      </Box>
-
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Name</TableCell>
-              <TableCell align="right">Amount</TableCell>
-              <TableCell>Category</TableCell>
-              <TableCell>Due Date</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell align="right">Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {filteredBills.map((bill) => (
-              <>
-                <TableRow 
-                  key={bill.id}
-                  onClick={() => setExpandedBillId(expandedBillId === bill.id ? null : bill.id)}
-                  sx={{ 
-                    opacity: bill.isPaid ? 0.7 : 1,
-                    bgcolor: bill.isPaid ? 'action.hover' : 'inherit',
-                    cursor: 'pointer',
-                    '&:hover': {
-                      bgcolor: 'action.hover',
-                    },
-                  }}
-                >
-                  <TableCell>{bill.name}</TableCell>
-                  <TableCell align="right">${parseFloat(bill.amount).toFixed(2)}</TableCell>
-                  <TableCell>
-                    <Chip 
-                      label={bill.category.name}
+        {/* Bills Section */}
+        <Grid item xs={12}>
+          <Paper sx={{ p: 2 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="h6">Bills</Typography>
+              <Button
+                startIcon={<AddIcon />}
+                onClick={() => setBillDialog({ open: true, data: null })}
+                variant="contained"
+              >
+                Add Bill
+              </Button>
+            </Box>
+            <List>
+              {bills.map((bill) => (
+                <ListItem key={bill.id} divider>
+                  <ListItemText
+                    primary={bill.isOneTime ? bill.payeeName : bill.payee?.name}
+                    secondary={
+                      <>
+                        <Typography variant="body2">
+                          Amount: {formatAmount(bill.amount)}
+                        </Typography>
+                        <Typography variant="body2">
+                          Due: {format(new Date(bill.dueDate), 'MMM dd, yyyy')}
+                        </Typography>
+                        <Typography variant="body2">
+                          Category: {bill.category.name}
+                        </Typography>
+                        {bill.description && (
+                          <Typography variant="body2">
+                            Note: {bill.description}
+                          </Typography>
+                        )}
+                      </>
+                    }
+                  />
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Chip
+                      label={bill.isPaid ? "Paid" : "Unpaid"}
                       size="small"
-                      sx={{ 
-                        backgroundColor: bill.category.color,
-                        color: 'white'
+                      color={bill.isPaid ? "success" : "warning"}
+                      onClick={() => {
+                        if (bill.isPaid) {
+                          setUnpayDialog({ open: true, bill });
+                        } else {
+                          setPaymentDialog({ open: true, bill });
+                        }
                       }}
                     />
-                  </TableCell>
-                  <TableCell>{format(new Date(bill.dueDate), 'MMM dd, yyyy')}</TableCell>
-                  <TableCell>
-                    {bill.isPaid ? (
-                      <Chip 
-                        label="Paid" 
-                        size="small" 
-                        color="success"
-                      />
-                    ) : (
-                      <Chip 
-                        label="Unpaid" 
-                        size="small" 
-                        color="warning"
-                      />
-                    )}
-                  </TableCell>
-                  <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
-                    {!bill.isPaid && (
-                      <Tooltip title="Mark as Paid">
-                        <IconButton
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handlePaymentClick(bill);
-                          }}
-                          color="success"
-                        >
-                          <PaidIcon />
-                        </IconButton>
-                      </Tooltip>
-                    )}
-                    <Tooltip title="Edit">
-                      <IconButton
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedBill({
-                            ...bill,
-                            dueDate: format(new Date(bill.dueDate), 'yyyy-MM-dd'),
-                            categoryId: bill.category.id
-                          });
-                          setDialogOpen(true);
-                        }}
-                      >
-                        <EditIcon />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Delete">
-                      <IconButton
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteClick(bill);
-                        }}
-                        color="error"
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </Tooltip>
-                  </TableCell>
-                </TableRow>
-                {expandedBillId === bill.id && (
-                  <TableRow>
-                    <TableCell colSpan={6} sx={{ p: 0 }}>
-                      <BillHistoryPanel 
-                        bill={bill}
-                        payments={payments.filter(p => p.billId === bill.id)}
-                      />
-                    </TableCell>
-                  </TableRow>
-                )}
-              </>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+                    <IconButton
+                      edge="end"
+                      onClick={() => setBillDialog({ open: true, data: bill })}
+                    >
+                      <EditIcon />
+                    </IconButton>
+                    <IconButton
+                      edge="end"
+                      onClick={() => handleDeleteBill(bill.id)}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </Box>
+                </ListItem>
+              ))}
+              {bills.length === 0 && (
+                <ListItem>
+                  <ListItemText
+                    secondary="No bills recorded yet"
+                    sx={{ textAlign: 'center', fontStyle: 'italic' }}
+                  />
+                </ListItem>
+              )}
+            </List>
+          </Paper>
+        </Grid>
+      </Grid>
+
+      <PayeeDialog
+        open={payeeDialog.open}
+        onClose={() => setPayeeDialog({ open: false, data: null })}
+        onSubmit={handlePayeeSubmit}
+        initialData={payeeDialog.data}
+        categories={categories}
+      />
 
       <BillDialog
-        open={dialogOpen}
-        onClose={() => {
-          setDialogOpen(false);
-          setSelectedBill(null);
-        }}
-        onSubmit={selectedBill ? handleUpdateBill : handleCreateBill}
-        initialData={selectedBill}
+        open={billDialog.open}
+        onClose={() => setBillDialog({ open: false, data: null })}
+        onSubmit={handleBillSubmit}
+        initialData={billDialog.data}
+        payees={payees}
+        categories={categories}
       />
 
-      <PaymentDialog />
-
-      <ConfirmationDialog
-        open={deleteDialog.open}
-        onClose={handleCloseDeleteDialog}
-        onConfirm={handleDeleteBill}
-        title="Delete Bill"
-        message="Are you sure you want to delete this bill? This action cannot be undone."
+      <BillPaymentDialog
+        open={paymentDialog.open}
+        bill={paymentDialog.bill}
+        onClose={() => setPaymentDialog({ open: false, bill: null })}
+        onSubmit={handlePaymentSubmit}
       />
 
-      <ConfirmationDialog
-        open={deletePaymentDialog.open}
-        onClose={handleCloseDeletePaymentDialog}
-        onConfirm={handleDeletePayment}
-        title="Delete Payment"
-        message="Are you sure you want to delete this payment? This action cannot be undone."
+      <BillUnpayDialog
+        open={unpayDialog.open}
+        bill={unpayDialog.bill}
+        onClose={() => setUnpayDialog({ open: false, bill: null })}
+        onConfirm={() => handleUnpayBill(unpayDialog.bill)}
       />
-
-      <RecurringDeleteDialog />
     </Box>
   );
 };

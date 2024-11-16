@@ -13,60 +13,56 @@ import {
   MenuItem,
   FormControlLabel,
   Switch,
+  Typography,
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 
-const BillDialog = ({ open, onClose, onSubmit, initialData, payees, categories }) => {
+const IncomeEntryDialog = ({ open, onClose, onSubmit, initialData, incomeSources }) => {
   const [formData, setFormData] = useState({
     amount: '',
-    dueDate: new Date(),
-    payeeId: '',
-    categoryId: '',
+    date: new Date(),
+    sourceId: '',
     description: '',
     isOneTime: false,
-    payeeName: '',
-    isPaid: false,
-    paidDate: null,
+    sourceName: '',
   });
 
   useEffect(() => {
     if (initialData) {
       setFormData({
         amount: initialData.amount ? String(initialData.amount) : '',
-        dueDate: initialData.dueDate ? new Date(initialData.dueDate) : new Date(),
-        payeeId: initialData.payeeId || '',
-        categoryId: initialData.categoryId || '',
+        date: initialData.date ? new Date(initialData.date) : new Date(),
+        sourceId: initialData.sourceId || '',
         description: initialData.description || '',
         isOneTime: initialData.isOneTime || false,
-        payeeName: initialData.payeeName || '',
-        isPaid: initialData.isPaid || false,
-        paidDate: initialData.paidDate ? new Date(initialData.paidDate) : null,
+        sourceName: initialData.sourceName || '',
       });
     } else {
       setFormData({
         amount: '',
-        dueDate: new Date(),
-        payeeId: '',
-        categoryId: '',
+        date: new Date(),
+        sourceId: '',
         description: '',
         isOneTime: false,
-        payeeName: '',
-        isPaid: false,
-        paidDate: null,
+        sourceName: '',
       });
     }
   }, [initialData, open]);
 
   const formatAmountInput = (input) => {
     const numericValue = input.replace(/[^0-9]/g, '');
+    
     if (numericValue === '') return '';
+    
     const cents = parseInt(numericValue, 10);
+    
     return (cents / 100).toFixed(2);
   };
 
   const handleAmountChange = (e) => {
     const rawInput = e.target.value;
     const formattedAmount = formatAmountInput(rawInput);
+    
     setFormData(prev => ({
       ...prev,
       amount: formattedAmount,
@@ -81,32 +77,17 @@ const BillDialog = ({ open, onClose, onSubmit, initialData, payees, categories }
     }));
   };
 
-  const handlePayeeChange = (e) => {
-    const selectedPayee = payees.find(p => p.id === e.target.value);
-    setFormData(prev => ({
-      ...prev,
-      payeeId: e.target.value,
-      // Auto-fill category and amount from payee if it's a new bill
-      ...((!initialData && selectedPayee) ? {
-        categoryId: selectedPayee.categoryId,
-        amount: String(selectedPayee.expectedAmount),
-      } : {}),
-    }));
-  };
-
   const handleSubmit = (e) => {
     e.preventDefault();
     onSubmit({
       ...formData,
       amount: parseFloat(formData.amount || '0'),
-      categoryId: parseInt(formData.categoryId),
-      payeeId: formData.isOneTime ? null : (formData.payeeId ? parseInt(formData.payeeId) : null),
     });
   };
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>{initialData ? 'Edit Bill' : 'Add Bill'}</DialogTitle>
+      <DialogTitle>{initialData ? 'Edit Income Entry' : 'Add Income Entry'}</DialogTitle>
       <form onSubmit={handleSubmit}>
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
@@ -118,38 +99,37 @@ const BillDialog = ({ open, onClose, onSubmit, initialData, payees, categories }
                     setFormData(prev => ({
                       ...prev,
                       isOneTime: e.target.checked,
-                      payeeId: e.target.checked ? '' : prev.payeeId,
-                      payeeName: e.target.checked ? '' : prev.payeeName,
+                      sourceId: e.target.checked ? '' : prev.sourceId,
                     }));
                   }}
                   name="isOneTime"
                 />
               }
-              label="One-time Bill"
+              label="One-time Income"
               sx={{ mb: 1 }}
             />
 
             {!formData.isOneTime ? (
               <FormControl fullWidth>
-                <InputLabel>Payee</InputLabel>
+                <InputLabel>Income Source</InputLabel>
                 <Select
-                  name="payeeId"
-                  value={formData.payeeId}
-                  onChange={handlePayeeChange}
-                  label="Payee"
+                  name="sourceId"
+                  value={formData.sourceId}
+                  onChange={handleChange}
+                  label="Income Source"
                 >
-                  {payees.map(payee => (
-                    <MenuItem key={payee.id} value={payee.id}>
-                      {payee.name}
+                  {incomeSources.map(source => (
+                    <MenuItem key={source.id} value={source.id}>
+                      {source.name}
                     </MenuItem>
                   ))}
                 </Select>
               </FormControl>
             ) : (
               <TextField
-                name="payeeName"
-                label="Payee Name"
-                value={formData.payeeName}
+                name="sourceName"
+                label="Source Name"
+                value={formData.sourceName}
                 onChange={handleChange}
                 fullWidth
                 required
@@ -170,52 +150,11 @@ const BillDialog = ({ open, onClose, onSubmit, initialData, payees, categories }
               helperText="Amount will be formatted automatically (e.g., 1234 → 12.34)"
             />
 
-            <FormControl fullWidth required>
-              <InputLabel>Category</InputLabel>
-              <Select
-                name="categoryId"
-                value={formData.categoryId}
-                onChange={handleChange}
-                label="Category"
-              >
-                {categories.map(category => (
-                  <MenuItem key={category.id} value={category.id}>
-                    {category.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
             <DatePicker
-              label="Due Date"
-              value={formData.dueDate}
-              onChange={(newDate) => setFormData(prev => ({ ...prev, dueDate: newDate }))}
+              label="Date"
+              value={formData.date}
+              onChange={(newDate) => setFormData(prev => ({ ...prev, date: newDate }))}
               renderInput={(params) => <TextField {...params} fullWidth required />}
-            />
-
-            {formData.isPaid && (
-              <DatePicker
-                label="Paid Date"
-                value={formData.paidDate}
-                onChange={(newDate) => setFormData(prev => ({ ...prev, paidDate: newDate }))}
-                renderInput={(params) => <TextField {...params} fullWidth />}
-              />
-            )}
-
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={formData.isPaid}
-                  onChange={(e) => {
-                    setFormData(prev => ({
-                      ...prev,
-                      isPaid: e.target.checked,
-                      paidDate: e.target.checked ? new Date() : null,
-                    }));
-                  }}
-                />
-              }
-              label="Bill is Paid"
             />
 
             <TextField
@@ -235,7 +174,7 @@ const BillDialog = ({ open, onClose, onSubmit, initialData, payees, categories }
             type="submit" 
             variant="contained" 
             color="primary"
-            disabled={!formData.amount || !formData.categoryId || (formData.isOneTime ? !formData.payeeName : !formData.payeeId)}
+            disabled={!formData.amount || (formData.isOneTime ? !formData.sourceName : !formData.sourceId)}
           >
             {initialData ? 'Update' : 'Create'}
           </Button>
@@ -245,4 +184,4 @@ const BillDialog = ({ open, onClose, onSubmit, initialData, payees, categories }
   );
 };
 
-export default BillDialog; 
+export default IncomeEntryDialog; 

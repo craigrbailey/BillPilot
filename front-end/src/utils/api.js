@@ -123,17 +123,54 @@ export const updateBill = async (id, billData) => {
   });
 };
 
-export const deleteBill = async (id, deleteAll = false) => {
-  return fetchWithAuth(`${API_BASE_URL}/bills/${id}?deleteAll=${deleteAll}`, {
+export const deleteBill = async (id) => {
+  return fetchWithAuth(`${API_BASE_URL}/bills/${id}`, {
     method: 'DELETE',
   });
 };
 
-export const markBillPaid = async (billId, paidDate) => {
+export const markBillPaid = async (billId, paymentDate) => {
   return fetchWithAuth(`${API_BASE_URL}/bills/${billId}/pay`, {
     method: 'PUT',
-    body: JSON.stringify({ paidDate }),
+    body: JSON.stringify({ paymentDate }),
   });
+};
+
+export const markBillUnpaid = async (billId) => {
+  return fetchWithAuth(`${API_BASE_URL}/bills/${billId}/unpay`, {
+    method: 'PUT',
+  });
+};
+
+export const getBillPayments = async (billId) => {
+  return fetchWithAuth(`${API_BASE_URL}/bills/${billId}/payments`);
+};
+
+// Function to generate recurring bills
+export const generateRecurringBills = async (payeeId) => {
+  return fetchWithAuth(`${API_BASE_URL}/payees/${payeeId}/generate-bills`, {
+    method: 'POST',
+  });
+};
+
+// Function to get bills by payee
+export const getBillsByPayee = async (payeeId) => {
+  return fetchWithAuth(`${API_BASE_URL}/payees/${payeeId}/bills`);
+};
+
+// Function to get upcoming bills
+export const getUpcomingBills = async () => {
+  return fetchWithAuth(`${API_BASE_URL}/bills/upcoming`);
+};
+
+// Function to get overdue bills
+export const getOverdueBills = async () => {
+  return fetchWithAuth(`${API_BASE_URL}/bills/overdue`);
+};
+
+// Function to get bill history
+export const getBillHistory = async () => {
+  return fetchWithAuth(`${API_BASE_URL}/bills/history`);
 };
 
 // Income endpoints
@@ -212,4 +249,153 @@ export const deletePayment = async (paymentId) => {
 // Add to your existing API functions
 export const checkRecurringItems = async () => {
   return fetchWithAuth(`${API_BASE_URL}/check-recurring`);
-}; 
+};
+
+export const testEmailSettings = async (settings) => {
+  return fetchWithAuth(`${API_BASE_URL}/settings/test-email`, {
+    method: 'POST',
+    body: JSON.stringify(settings),
+  });
+};
+
+export const addEmailRecipient = async (recipientData) => {
+  return fetchWithAuth(`${API_BASE_URL}/settings/email-recipients`, {
+    method: 'POST',
+    body: JSON.stringify(recipientData),
+  });
+};
+
+export const deleteEmailRecipient = async (recipientId) => {
+  return fetchWithAuth(`${API_BASE_URL}/settings/email-recipients/${recipientId}`, {
+    method: 'DELETE',
+  });
+};
+
+// Add these new income-related functions to your existing api.js file
+
+// Income Sources
+export const fetchIncomeSources = async () => {
+  const response = await fetch('/api/income/sources', {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('token')}`,
+      'Content-Type': 'application/json',
+    },
+  });
+  if (!response.ok) throw new Error('Failed to fetch income sources');
+  return response.json();
+};
+
+export const createIncomeSource = async (sourceData) => {
+  const response = await fetch('/api/income/sources', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('token')}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(sourceData),
+  });
+  if (!response.ok) throw new Error('Failed to create income source');
+  return response.json();
+};
+
+export const updateIncomeSource = async (id, sourceData) => {
+  const response = await fetch(`/api/income/sources/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('token')}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(sourceData),
+  });
+  if (!response.ok) throw new Error('Failed to update income source');
+  return response.json();
+};
+
+export const deleteIncomeSource = async (id) => {
+  const response = await fetch(`/api/income/sources/${id}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('token')}`,
+    },
+  });
+  if (!response.ok) throw new Error('Failed to delete income source');
+  return response.json();
+};
+
+// Income Entries
+export const fetchIncomeEntries = async () => {
+  const response = await fetch('/api/income/entries', {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('token')}`,
+      'Content-Type': 'application/json',
+    },
+  });
+  if (!response.ok) throw new Error('Failed to fetch income entries');
+  return response.json();
+};
+
+export const createIncomeEntry = async (entryData) => {
+  const response = await fetch('/api/income/entries', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('token')}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(entryData),
+  });
+  if (!response.ok) throw new Error('Failed to create income entry');
+  return response.json();
+};
+
+export const updateIncomeEntry = async (id, entryData) => {
+  const response = await fetch(`/api/income/entries/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('token')}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(entryData),
+  });
+  if (!response.ok) throw new Error('Failed to update income entry');
+  return response.json();
+};
+
+export const deleteIncomeEntry = async (id) => {
+  const response = await fetch(`/api/income/entries/${id}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('token')}`,
+    },
+  });
+  if (!response.ok) throw new Error('Failed to delete income entry');
+  return response.json();
+};
+
+// Payee operations
+export const fetchPayees = async () => {
+  const response = await fetchWithAuth(`${API_BASE_URL}/payees`);
+  return response;
+};
+
+export const createPayee = async (payeeData) => {
+  return fetchWithAuth(`${API_BASE_URL}/payees`, {
+    method: 'POST',
+    body: JSON.stringify(payeeData),
+  });
+};
+
+export const updatePayee = async (id, payeeData) => {
+  return fetchWithAuth(`${API_BASE_URL}/payees/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payeeData),
+  });
+};
+
+export const deletePayee = async (id) => {
+  return fetchWithAuth(`${API_BASE_URL}/payees/${id}`, {
+    method: 'DELETE',
+  });
+};
+  

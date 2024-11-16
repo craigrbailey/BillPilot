@@ -396,3 +396,96 @@ export const getPaymentHistory = async (userId) => {
 export const clearUserCache = (userId) => {
   cacheService.clearUserCache(userId);
 };
+
+// Income Sources
+async function createIncomeSource(userId, sourceData) {
+  const { name, amount, frequency, startDate, description } = sourceData;
+  const query = `
+    INSERT INTO income_sources (user_id, name, amount, frequency, start_date, description)
+    VALUES ($1, $2, $3, $4, $5, $6)
+    RETURNING *
+  `;
+  const values = [userId, name, amount, frequency, startDate, description];
+  const result = await pool.query(query, values);
+  return result.rows[0];
+}
+
+async function getIncomeSources(userId) {
+  const query = `
+    SELECT * FROM income_sources
+    WHERE user_id = $1
+    ORDER BY start_date DESC
+  `;
+  const result = await pool.query(query, [userId]);
+  return result.rows;
+}
+
+async function updateIncomeSource(userId, sourceId, sourceData) {
+  const { name, amount, frequency, startDate, description } = sourceData;
+  const query = `
+    UPDATE income_sources
+    SET name = $1, amount = $2, frequency = $3, start_date = $4, description = $5, updated_at = CURRENT_TIMESTAMP
+    WHERE id = $6 AND user_id = $7
+    RETURNING *
+  `;
+  const values = [name, amount, frequency, startDate, description, sourceId, userId];
+  const result = await pool.query(query, values);
+  return result.rows[0];
+}
+
+async function deleteIncomeSource(userId, sourceId) {
+  // First delete all related entries
+  await pool.query('DELETE FROM income_entries WHERE source_id = $1 AND user_id = $2', [sourceId, userId]);
+  
+  // Then delete the source
+  const query = 'DELETE FROM income_sources WHERE id = $1 AND user_id = $2 RETURNING *';
+  const result = await pool.query(query, [sourceId, userId]);
+  return result.rows[0];
+}
+
+// Income Entries
+async function createIncomeEntry(userId, entryData) {
+  const { sourceId, amount, date, description, isOneTime } = entryData;
+  const query = `
+    INSERT INTO income_entries (user_id, source_id, amount, date, description, is_one_time)
+    VALUES ($1, $2, $3, $4, $5, $6)
+    RETURNING *
+  `;
+  const values = [userId, sourceId || null, amount, date, description, isOneTime];
+  const result = await pool.query(query, values);
+  return result.rows[0];
+}
+
+async function getIncomeEntries(userId) {
+  const query = `
+    SELECT 
+      e.*,
+      s.name as source_name,
+      s.frequency as source_frequency
+    FROM income_entries e
+    LEFT JOIN income_sources s ON e.source_id = s.id
+    WHERE e.user_id = $1
+    ORDER BY e.date DESC
+  `;
+  const result = await pool.query(query, [userId]);
+  return result.rows;
+}
+
+async function updateIncomeEntry(userId, entryId, entryData) {
+  const { sourceId, amount, date, description, isOneTime } = entryData;
+  const query = `
+    UPDATE income_entries
+    SET source_id = $1, amount = $2, date = $3, description = $4, is_one_time = $5, updated_at = CURRENT_TIMESTAMP
+    WHERE id = $6 AND user_id = $7
+    RETURNING *
+  `;
+  const values = [sourceId || null, amount, date, description, isOneTime, entryId, userId];
+  const result = await pool.query(query, values);
+  return result.rows[0];
+}
+
+async function deleteIncomeEntry(userId, entryId) {
+  const query = 'DELETE FROM income_entries WHERE id = $1 AND user_id = $2 RETURNING *';
+  const result = await pool.query(query, [entryId, userId]);
+  return result.rows[0];
+}

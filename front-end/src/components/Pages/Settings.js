@@ -17,6 +17,10 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemSecondaryAction,
 } from '@mui/material';
 import {
   Visibility as VisibilityIcon,
@@ -24,10 +28,14 @@ import {
   LightMode as LightModeIcon,
   DarkMode as DarkModeIcon,
   Notifications as NotificationsIcon,
+  Email as EmailIcon,
+  Delete as DeleteIcon,
 } from '@mui/icons-material';
 import * as api from '../../utils/api';
+import { useNotification } from '../../contexts/NotificationContext';
 
 const Settings = ({ onUpdateSettings }) => {
+  const { showNotification } = useNotification();
   const [settings, setSettings] = useState({
     darkMode: false,
     pushoverToken: '',
@@ -37,15 +45,30 @@ const Settings = ({ onUpdateSettings }) => {
     notifyOnDue: true,
     notifyDaysBefore: 1,
     notifyOnPayment: true,
+    emailEnabled: false,
+    emailHost: '',
+    emailPort: '',
+    emailUser: '',
+    emailPass: '',
+    emailSecure: true,
+    emailSummaryEnabled: false,
+    emailSummaryFrequency: 'WEEKLY',
+    emailBillUpdates: false,
   });
   const [showTokens, setShowTokens] = useState({
     pushover: false,
     pushbullet: false,
     discord: false,
+    email: false,
   });
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [emailRecipients, setEmailRecipients] = useState([]);
+  const [newRecipient, setNewRecipient] = useState({
+    email: '',
+    name: '',
+  });
 
   useEffect(() => {
     fetchSettings();
@@ -55,6 +78,7 @@ const Settings = ({ onUpdateSettings }) => {
     try {
       const data = await api.fetchSettings();
       setSettings(data);
+      setEmailRecipients(data.emailRecipients || []);
       setLoading(false);
     } catch (err) {
       setError('Failed to load settings');
@@ -92,6 +116,32 @@ const Settings = ({ onUpdateSettings }) => {
       ...prev,
       [service]: !prev[service]
     }));
+  };
+
+  const handleAddRecipient = async () => {
+    try {
+      if (!newRecipient.email) {
+        showNotification('Email is required', 'error');
+        return;
+      }
+
+      const recipient = await api.addEmailRecipient(newRecipient);
+      setEmailRecipients(prev => [...prev, recipient]);
+      setNewRecipient({ email: '', name: '' });
+      showNotification('Recipient added successfully', 'success');
+    } catch (err) {
+      showNotification('Failed to add recipient', 'error');
+    }
+  };
+
+  const handleDeleteRecipient = async (id) => {
+    try {
+      await api.deleteEmailRecipient(id);
+      setEmailRecipients(prev => prev.filter(r => r.id !== id));
+      showNotification('Recipient removed successfully', 'success');
+    } catch (err) {
+      showNotification('Failed to remove recipient', 'error');
+    }
   };
 
   if (loading) {
@@ -279,6 +329,232 @@ const Settings = ({ onUpdateSettings }) => {
                 }}
               />
             </Box>
+          </Paper>
+        </Grid>
+
+        {/* Email Settings */}
+        <Grid item xs={12}>
+          <Paper sx={{ p: 3 }}>
+            <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+              <EmailIcon sx={{ mr: 1 }} />
+              Email Settings
+            </Typography>
+
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={settings.emailEnabled}
+                  onChange={handleChange}
+                  name="emailEnabled"
+                />
+              }
+              label="Enable Email Notifications"
+            />
+
+            {settings.emailEnabled && (
+              <Box sx={{ mt: 2 }}>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      label="SMTP Host"
+                      name="emailHost"
+                      value={settings.emailHost}
+                      onChange={handleChange}
+                      helperText="e.g., smtp.gmail.com"
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      label="SMTP Port"
+                      name="emailPort"
+                      type="number"
+                      value={settings.emailPort}
+                      onChange={handleChange}
+                      helperText="e.g., 587"
+                    />
+                  </Grid>
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      label="Email Address"
+                      name="emailUser"
+                      value={settings.emailUser}
+                      onChange={handleChange}
+                      type="email"
+                    />
+                  </Grid>
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      label="App Password"
+                      name="emailPass"
+                      value={settings.emailPass}
+                      onChange={handleChange}
+                      type={showTokens.email ? 'text' : 'password'}
+                      helperText="Use an app-specific password from your Google Account"
+                      InputProps={{
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <IconButton onClick={() => toggleShowToken('email')}>
+                              {showTokens.email ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                            </IconButton>
+                          </InputAdornment>
+                        ),
+                      }}
+                    />
+                  </Grid>
+                  <Grid item xs={12}>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={settings.emailSecure}
+                          onChange={handleChange}
+                          name="emailSecure"
+                        />
+                      }
+                      label="Use TLS"
+                    />
+                  </Grid>
+
+                  <Grid item xs={12}>
+                    <Divider sx={{ my: 2 }} />
+                    <Typography variant="subtitle1" gutterBottom>
+                      Email Preferences
+                    </Typography>
+                    
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={settings.emailSummaryEnabled}
+                          onChange={handleChange}
+                          name="emailSummaryEnabled"
+                        />
+                      }
+                      label="Receive Summary Reports"
+                    />
+
+                    {settings.emailSummaryEnabled && (
+                      <FormControl fullWidth sx={{ mt: 2 }}>
+                        <InputLabel>Summary Frequency</InputLabel>
+                        <Select
+                          value={settings.emailSummaryFrequency}
+                          onChange={handleChange}
+                          name="emailSummaryFrequency"
+                          label="Summary Frequency"
+                        >
+                          <MenuItem value="DAILY">Daily</MenuItem>
+                          <MenuItem value="WEEKLY">Weekly</MenuItem>
+                          <MenuItem value="MONTHLY">Monthly</MenuItem>
+                        </Select>
+                      </FormControl>
+                    )}
+
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={settings.emailBillUpdates}
+                          onChange={handleChange}
+                          name="emailBillUpdates"
+                        />
+                      }
+                      label="Receive Bill Payment Updates"
+                      sx={{ mt: 2, display: 'block' }}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12}>
+                    <Divider sx={{ my: 2 }} />
+                    <Typography variant="subtitle1" gutterBottom>
+                      Email Recipients
+                    </Typography>
+                    
+                    <Box sx={{ mb: 2 }}>
+                      <Grid container spacing={2}>
+                        <Grid item xs={12} sm={6}>
+                          <TextField
+                            fullWidth
+                            label="Email Address"
+                            value={newRecipient.email}
+                            onChange={(e) => setNewRecipient(prev => ({
+                              ...prev,
+                              email: e.target.value
+                            }))}
+                            type="email"
+                          />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                          <TextField
+                            fullWidth
+                            label="Name (Optional)"
+                            value={newRecipient.name}
+                            onChange={(e) => setNewRecipient(prev => ({
+                              ...prev,
+                              name: e.target.value
+                            }))}
+                          />
+                        </Grid>
+                        <Grid item xs={12}>
+                          <Button
+                            variant="outlined"
+                            onClick={handleAddRecipient}
+                            disabled={!newRecipient.email}
+                          >
+                            Add Recipient
+                          </Button>
+                        </Grid>
+                      </Grid>
+                    </Box>
+
+                    <List>
+                      {emailRecipients.map((recipient) => (
+                        <ListItem
+                          key={recipient.id}
+                          sx={{
+                            bgcolor: 'background.paper',
+                            mb: 1,
+                            borderRadius: 1,
+                          }}
+                        >
+                          <ListItemText
+                            primary={recipient.email}
+                            secondary={recipient.name}
+                          />
+                          <ListItemSecondaryAction>
+                            <IconButton
+                              edge="end"
+                              aria-label="delete"
+                              onClick={() => handleDeleteRecipient(recipient.id)}
+                              color="error"
+                            >
+                              <DeleteIcon />
+                            </IconButton>
+                          </ListItemSecondaryAction>
+                        </ListItem>
+                      ))}
+                    </List>
+                  </Grid>
+
+                  <Grid item xs={12}>
+                    <Button
+                      variant="outlined"
+                      onClick={async () => {
+                        try {
+                          await api.testEmailSettings(settings);
+                          showNotification('Test email sent successfully!', 'success');
+                        } catch (err) {
+                          showNotification('Failed to send test email', 'error');
+                        }
+                      }}
+                      sx={{ mt: 2 }}
+                    >
+                      Send Test Email
+                    </Button>
+                  </Grid>
+                </Grid>
+              </Box>
+            )}
           </Paper>
         </Grid>
       </Grid>

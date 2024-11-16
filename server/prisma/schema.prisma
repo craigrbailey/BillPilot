@@ -40,6 +40,16 @@ model Settings {
   notifyOnDue     Boolean   @default(true)
   notifyDaysBefore Int      @default(1)
   notifyOnPayment Boolean   @default(true)
+  emailEnabled    Boolean   @default(false)
+  emailHost       String?   // SMTP host (e.g., smtp.gmail.com)
+  emailPort       Int?      // SMTP port (e.g., 587)
+  emailUser       String?   // Email address
+  emailPass       String?   // App-specific password
+  emailSecure     Boolean   @default(true) // Use TLS
+  emailSummaryEnabled Boolean @default(false)
+  emailSummaryFrequency String? // DAILY, WEEKLY, MONTHLY
+  emailBillUpdates Boolean @default(false)
+  emailRecipients EmailRecipient[]
 }
 
 model Session {
@@ -109,4 +119,14 @@ model Income {
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   parentId      Int?
+}
+
+model EmailRecipient {
+  id        Int      @id @default(autoincrement())
+  email     String
+  name      String?
+  settings  Settings @relation(fields: [settingsId], references: [id], onDelete: Cascade)
+  settingsId Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 } 

@@ -9,6 +9,10 @@ const generateNextDate = (item, lastDate) => {
       return addWeeks(lastDate, 2);
     case 'MONTHLY':
       return addMonths(lastDate, 1);
+    case 'QUARTERLY':
+      return addMonths(lastDate, 3);
+    case 'BIANNUAL':
+      return addMonths(lastDate, 6);
     default:
       return null;
   }

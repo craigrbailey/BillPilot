@@ -1,143 +1,151 @@
+import React from 'react';
 import { Paper, Typography, Box } from '@mui/material';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from 'recharts';
-import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { startOfMonth, endOfMonth, format, parseISO, subMonths } from 'date-fns';
 import { formatAmount } from '../../utils/formatters';
-import { useTheme } from '@mui/material/styles';
 
 const MonthlyComparisonChart = ({ bills, incomes }) => {
-  const theme = useTheme();
+  const currentMonth = new Date();
+  
+  // Create data for the last 11 months plus current month (projected)
+  const monthsData = Array.from({ length: 12 }, (_, index) => {
+    const monthDate = subMonths(currentMonth, 11 - index);
+    const monthStart = startOfMonth(monthDate);
+    const monthEnd = endOfMonth(monthDate);
+    const isProjected = index === 11; // Last month is projected
 
-  // Generate data for the last 12 months
-  const getLast12MonthsData = () => {
-    const monthsData = [];
-    
-    for (let i = 11; i >= 0; i--) {
-      const date = subMonths(new Date(), i);
-      const monthStart = startOfMonth(date);
-      const monthEnd = endOfMonth(date);
+    // Group bills by category for this month
+    const billsByCategory = bills.reduce((acc, bill) => {
+      const dueDate = parseISO(bill.dueDate);
+      if (dueDate >= monthStart && dueDate <= monthEnd && 
+          (isProjected ? !bill.isPaid : bill.isPaid)) { // For projected month, show unpaid bills
+        const categoryId = bill.category.id;
+        if (!acc[categoryId]) {
+          acc[categoryId] = {
+            name: bill.category.name,
+            color: bill.category.color,
+            amount: 0
+          };
+        }
+        acc[categoryId].amount += bill.amount;
+      }
+      return acc;
+    }, {});
 
-      // Calculate total bills for the month
-      const monthlyBills = bills.filter(bill => {
-        const billDate = new Date(bill.dueDate);
-        return billDate >= monthStart && billDate <= monthEnd;
-      });
-      const totalBills = monthlyBills.reduce((sum, bill) => sum + Number(bill.amount), 0);
+    // Calculate income for this month
+    const monthlyIncome = incomes.reduce((sum, income) => {
+      const date = parseISO(income.nextPayDate);
+      if (date >= monthStart && date <= monthEnd) {
+        return sum + income.amount;
+      }
+      return sum;
+    }, 0);
 
-      // Calculate total income for the month
-      const monthlyIncome = incomes.filter(income => {
-        const incomeDate = new Date(income.nextPayDate);
-        return incomeDate >= monthStart && incomeDate <= monthEnd;
-      });
-      const totalIncome = monthlyIncome.reduce((sum, income) => sum + Number(income.amount), 0);
+    return {
+      name: format(monthDate, 'MMM'),
+      income: monthlyIncome,
+      isProjected,
+      ...Object.values(billsByCategory).reduce((acc, category) => {
+        acc[category.name] = category.amount;
+        return acc;
+      }, {})
+    };
+  });
 
-      monthsData.push({
-        month: format(date, 'MMM yyyy'),
-        bills: totalBills,
-        income: totalIncome,
-        difference: totalIncome - totalBills,
-      });
-    }
+  // Create bars for each category
+  const uniqueCategories = new Set();
+  bills.forEach(bill => uniqueCategories.add(bill.category.name));
+  
+  const categoryBars = Array.from(uniqueCategories).map(categoryName => {
+    const category = bills.find(bill => bill.category.name === categoryName).category;
+    return (
+      <Bar
+        key={categoryName}
+        dataKey={categoryName}
+        stackId="bills"
+        fill={category.color}
+        name={categoryName}
+        strokeDasharray={entry => entry.isProjected ? "3 3" : "0"} // Dashed border for projected
+        fillOpacity={entry => entry.isProjected ? 0.7 : 1} // Lower opacity for projected
+        stroke={category.color}
+        strokeWidth={1}
+      />
+    );
+  });
 
-    return monthsData;
-  };
-
-  const data = getLast12MonthsData();
-
-  const CustomTooltip = ({ active, payload, label }) => {
+  const CustomTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
-      const monthData = payload[0].payload;
       return (
-        <Paper 
-          sx={{ 
+        <Box
+          sx={{
+            bgcolor: 'background.paper',
             p: 2,
-            bgcolor: theme.palette.mode === 'dark' ? 'background.paper' : 'background.default',
             border: 1,
             borderColor: 'divider',
-            boxShadow: theme.shadows[4],
+            borderRadius: 1,
+            boxShadow: 1,
           }}
         >
-          <Typography variant="subtitle2">{label}</Typography>
-          <Typography color="success.main">
-            Income: {formatAmount(monthData.income)}
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>
+            {payload[0]?.payload.name} {payload[0]?.payload.isProjected ? '(Projected)' : ''}
           </Typography>
-          <Typography color="error.main">
-            Bills: {formatAmount(monthData.bills)}
-          </Typography>
-          <Typography 
-            sx={{ 
-              color: monthData.difference >= 0 ? 'success.main' : 'error.main',
-              fontWeight: 'bold'
-            }}
-          >
-            Net: {formatAmount(monthData.difference)}
-          </Typography>
-        </Paper>
+          {payload.map((entry, index) => (
+            <Typography
+              key={index}
+              variant="body2"
+              sx={{
+                color: entry.dataKey === 'income' ? 'success.main' : entry.color,
+                fontWeight: 'medium',
+              }}
+            >
+              {entry.name}: {formatAmount(entry.value)}
+            </Typography>
+          ))}
+        </Box>
       );
     }
     return null;
   };
 
   return (
-    <Paper sx={{ p: 2, mb: 3, height: '400px' }}>
+    <Paper sx={{ p: 2, height: '400px' }}>
       <Typography variant="h6" gutterBottom>
-        Monthly Income vs Bills
+        Monthly Income vs Bills (Last 12 Months)
       </Typography>
       <ResponsiveContainer width="100%" height="90%">
-        <BarChart
-          data={data}
+        <BarChart 
+          data={monthsData}
           margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+          style={{
+            '& .recharts-rectangle.recharts-bar-rectangle:hover': {
+              fill: 'none',
+            },
+          }}
         >
-          <CartesianGrid 
-            strokeDasharray="3 3" 
-            stroke={theme.palette.divider}
-          />
           <XAxis 
-            dataKey="month"
-            tick={{ fontSize: 12, fill: theme.palette.text.primary }}
-            interval={0}
-            angle={-45}
-            textAnchor="end"
-            height={60}
-            stroke={theme.palette.text.primary}
+            dataKey="name"
+            axisLine={{ strokeWidth: 2 }}
           />
           <YAxis 
             tickFormatter={(value) => formatAmount(value)}
-            tick={{ fontSize: 12, fill: theme.palette.text.primary }}
-            stroke={theme.palette.text.primary}
+            axisLine={{ strokeWidth: 2 }}
           />
           <Tooltip 
             content={<CustomTooltip />}
-            cursor={{ 
-              fill: theme.palette.action.hover,
-              opacity: 0.1,
-            }}
+            cursor={false}
           />
-          <Legend 
-            wrapperStyle={{
-              paddingTop: '20px',
-            }}
+          <Legend />
+          <Bar
+            dataKey="income"
+            fill="#4caf50"
+            name="Income"
+            strokeDasharray={entry => entry.isProjected ? "3 3" : "0"}
+            fillOpacity={entry => entry.isProjected ? 0.7 : 1}
+            stroke="#4caf50"
+            strokeWidth={1}
+            activeBar={false}
           />
-          <Bar 
-            dataKey="income" 
-            name="Income" 
-            fill={theme.palette.success.main}
-            radius={[4, 4, 0, 0]}
-          />
-          <Bar 
-            dataKey="bills" 
-            name="Bills" 
-            fill={theme.palette.error.main}
-            radius={[4, 4, 0, 0]}
-          />
+          {categoryBars.map(bar => React.cloneElement(bar, { activeBar: false }))}
         </BarChart>
       </ResponsiveContainer>
     </Paper>
