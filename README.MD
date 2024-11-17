@@ -3,6 +3,9 @@
 
   # Bill Pilot
 </div>
+![Status](https://img.shields.io/badge/status-alpha-red)
+
+> 🚧 **Note:** This project is currently under active development. Features and functionality may change.
 
 A modern, full-stack application for managing bills, tracking payments, and maintaining financial organization. This application helps users keep track of their bills, set up recurring payments, and monitor their financial health through intuitive dashboards and reports.
 
@@ -36,11 +39,12 @@ A modern, full-stack application for managing bills, tracking payments, and main
 - Email notifications for upcoming bills
 - Multi-user support
 
-### Categories & Organization
-- Create custom bill categories
-- Organize bills by payee
-- Filter and sort capabilities
-- Search functionality
+### Categories & Organization (Alpha)
+- Create custom bill categories (In Development)
+- Organize bills by payee (In Development) 
+- Filter and sort capabilities (Planned)
+- Search functionality (Planned)
+- Additional organization features coming soon
 
 ## Technical Stack
 
