@@ -7,126 +7,90 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum IncomeFrequency {
-  ONE_TIME
-  WEEKLY
-  BIWEEKLY
-  MONTHLY
-}
-
 model User {
-  id         Int       @id @default(autoincrement())
-  email      String    @unique
-  password   String
-  settings   Settings?
-  sessions   Session[]
-  bills      Bill[]
-  incomes    Income[]
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  id        Int       @id @default(autoincrement())
+  email     String    @unique
+  password  String
+  settings  Settings?
+  bills     Bill[]
+  incomes   Income[]
+  categories Category[]
+  sessions  Session[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 }
 
 model Settings {
   id              Int       @id @default(autoincrement())
-  darkMode        Boolean   @default(false)
-  user            User      @relation(fields: [userId], references: [id])
   userId          Int       @unique
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  pushoverToken   String?
-  pushoverUser    String?
-  pushbulletToken String?
-  discordWebhook  String?
+  user            User      @relation(fields: [userId], references: [id])
+  darkMode        Boolean   @default(false)
   notifyOnDue     Boolean   @default(true)
   notifyDaysBefore Int      @default(1)
   notifyOnPayment Boolean   @default(true)
-  emailEnabled    Boolean   @default(false)
-  emailHost       String?   // SMTP host (e.g., smtp.gmail.com)
-  emailPort       Int?      // SMTP port (e.g., 587)
-  emailUser       String?   // Email address
-  emailPass       String?   // App-specific password
-  emailSecure     Boolean   @default(true) // Use TLS
-  emailSummaryEnabled Boolean @default(false)
-  emailSummaryFrequency String? // DAILY, WEEKLY, MONTHLY
-  emailBillUpdates Boolean @default(false)
-  emailRecipients EmailRecipient[]
-}
-
-model Session {
-  id        Int      @id @default(autoincrement())
-  token     String   @unique
-  user      User     @relation(fields: [userId], references: [id])
-  userId    Int
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
 
 model Bill {
   id          Int       @id @default(autoincrement())
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id])
   name        String
   amount      Float
   dueDate     DateTime
-  balance     Float?
   categoryId  Int
-  userId      Int
-  notes       String?
   category    Category  @relation(fields: [categoryId], references: [id])
-  user        User      @relation(fields: [userId], references: [id])
-  history     Payment[]
+  description String?
+  isOneTime   Boolean   @default(false)
   isPaid      Boolean   @default(false)
   paidDate    DateTime?
+  history     BillHistory[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
-  parentId    Int?
-  isRecurring Boolean   @default(false)
-  frequency   String    @default("ONE_TIME")
+}
+
+model BillHistory {
+  id        Int      @id @default(autoincrement())
+  billId    Int
+  bill      Bill     @relation(fields: [billId], references: [id])
+  amount    Float
+  dueDate   DateTime
+  paidDate  DateTime?
+  createdAt DateTime @default(now())
 }
 
 model Category {
   id        Int      @id @default(autoincrement())
-  name      String   @unique
-  color     String   @default("#808080")
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  name      String
+  color     String
   bills     Bill[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-model Payment {
-  id        Int      @id @default(autoincrement())
-  amount    Float
-  paidDate  DateTime @default(now())
-  bill      Bill     @relation(fields: [billId], references: [id], onDelete: Cascade)
-  billId    Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
 model Income {
-  id            Int             @id @default(autoincrement())
-  name          String
-  amount        Float
-  frequency     IncomeFrequency @default(ONE_TIME)
-  dayOfWeek     Int?           // 0-6 for weekly (Sunday = 0)
-  dayOfMonth    Int?           // 1-31 for monthly
-  startDate     DateTime
-  isRecurring   Boolean        @default(false)
-  lastPaid      DateTime?
-  nextPayDate   DateTime
-  notes         String?
-  user          User           @relation(fields: [userId], references: [id])
-  userId        Int
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  parentId      Int?
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id])
+  name        String
+  amount      Float
+  frequency   String    // WEEKLY, BIWEEKLY, MONTHLY, etc.
+  startDate   DateTime
+  nextPayDate DateTime
+  lastPaid    DateTime?
+  isRecurring Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
 
-model EmailRecipient {
+model Session {
   id        Int      @id @default(autoincrement())
-  email     String
-  name      String?
-  settings  Settings @relation(fields: [settingsId], references: [id], onDelete: Cascade)
-  settingsId Int
+  token     String   @unique
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  expiresAt DateTime
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 } 

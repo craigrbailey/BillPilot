@@ -11,8 +11,21 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  IconButton,
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { Add as AddIcon } from '@mui/icons-material';
+import * as api from '../../utils/api';
+
+// Function to generate random color
+const generateRandomColor = () => {
+  const letters = '0123456789ABCDEF';
+  let color = '#';
+  for (let i = 0; i < 6; i++) {
+    color += letters[Math.floor(Math.random() * 16)];
+  }
+  return color;
+};
 
 const PayeeDialog = ({ open, onClose, onSubmit, initialData, categories }) => {
   const [formData, setFormData] = useState({
@@ -23,6 +36,12 @@ const PayeeDialog = ({ open, onClose, onSubmit, initialData, categories }) => {
     categoryId: '',
     description: '',
   });
+  const [newCategory, setNewCategory] = useState('');
+  const [localCategories, setLocalCategories] = useState(categories || []);
+
+  useEffect(() => {
+    setLocalCategories(categories);
+  }, [categories]);
 
   useEffect(() => {
     if (initialData) {
@@ -70,6 +89,23 @@ const PayeeDialog = ({ open, onClose, onSubmit, initialData, categories }) => {
     }));
   };
 
+  const handleCreateCategory = async () => {
+    if (!newCategory.trim()) return;
+
+    try {
+      const categoryData = {
+        name: newCategory.trim(),
+        color: generateRandomColor(),
+      };
+      const createdCategory = await api.createCategory(categoryData);
+      setLocalCategories(prev => [...prev, createdCategory]);
+      setFormData(prev => ({ ...prev, categoryId: createdCategory.id }));
+      setNewCategory('');
+    } catch (error) {
+      console.error('Failed to create category:', error);
+    }
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     onSubmit({
@@ -108,21 +144,57 @@ const PayeeDialog = ({ open, onClose, onSubmit, initialData, categories }) => {
               helperText="Amount will be formatted automatically (e.g., 1234 → 12.34)"
             />
 
-            <FormControl fullWidth required>
-              <InputLabel>Category</InputLabel>
-              <Select
-                name="categoryId"
-                value={formData.categoryId}
-                onChange={handleChange}
-                label="Category"
-              >
-                {categories.map(category => (
-                  <MenuItem key={category.id} value={category.id}>
-                    {category.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            {/* Category Selection with Add New Category Option */}
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <FormControl fullWidth required>
+                <InputLabel>Category</InputLabel>
+                <Select
+                  name="categoryId"
+                  value={formData.categoryId}
+                  onChange={handleChange}
+                  label="Category"
+                >
+                  {localCategories.map(category => (
+                    <MenuItem 
+                      key={category.id} 
+                      value={category.id}
+                      sx={{ 
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1,
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          width: 16,
+                          height: 16,
+                          borderRadius: '50%',
+                          backgroundColor: category.color,
+                        }}
+                      />
+                      {category.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mt: 1 }}>
+                <TextField
+                  size="small"
+                  placeholder="New Category"
+                  value={newCategory}
+                  onChange={(e) => setNewCategory(e.target.value)}
+                  sx={{ width: 150 }}
+                />
+                <IconButton
+                  onClick={handleCreateCategory}
+                  disabled={!newCategory.trim()}
+                  color="primary"
+                  size="small"
+                >
+                  <AddIcon />
+                </IconButton>
+              </Box>
+            </Box>
 
             <FormControl fullWidth required>
               <InputLabel>Frequency</InputLabel>

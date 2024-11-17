@@ -28,5 +28,4 @@ registerRoutes(app);
 // Start server
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
-  console.log(`Default admin credentials: ${process.env.DEFAULT_ADMIN_EMAIL} / ${process.env.DEFAULT_ADMIN_PASSWORD}`);
 });

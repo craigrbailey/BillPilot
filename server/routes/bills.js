@@ -1,6 +1,7 @@
 import express from 'express';
 import { authenticateToken } from '../middleware/auth.js';
 import * as billOperations from '../database/billOperations.js';
+import prisma from '../database/db.js';
 
 const router = express.Router();
 
@@ -143,6 +144,77 @@ router.get('/overdue', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error fetching overdue bills:', error);
     res.status(500).json({ error: 'Failed to fetch overdue bills' });
+  }
+});
+
+// Get payment history
+router.get('/payments', authenticateToken, async (req, res) => {
+  try {
+    const payments = await prisma.billHistory.findMany({
+      where: {
+        bill: {
+          userId: req.user.id,
+        },
+      },
+      include: {
+        bill: {
+          include: {
+            category: true,
+          },
+        },
+      },
+      orderBy: {
+        paidDate: 'desc',
+      },
+    });
+
+    res.json(payments);
+  } catch (error) {
+    console.error('Error fetching payment history:', error);
+    res.status(500).json({ error: 'Failed to fetch payment history' });
+  }
+});
+
+// Delete a payment
+router.delete('/payments/:id', authenticateToken, async (req, res) => {
+  try {
+    const payment = await prisma.billHistory.findUnique({
+      where: { id: parseInt(req.params.id) },
+      include: {
+        bill: true,
+      },
+    });
+
+    // Verify the payment belongs to the user
+    if (payment.bill.userId !== req.user.id) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    // Delete the payment
+    await prisma.billHistory.delete({
+      where: { id: parseInt(req.params.id) },
+    });
+
+    // Update the bill's paid status if this was the latest payment
+    const latestPayment = await prisma.billHistory.findFirst({
+      where: { billId: payment.billId },
+      orderBy: { paidDate: 'desc' },
+    });
+
+    if (!latestPayment) {
+      await prisma.bill.update({
+        where: { id: payment.billId },
+        data: {
+          isPaid: false,
+          paidDate: null,
+        },
+      });
+    }
+
+    res.json({ message: 'Payment deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting payment:', error);
+    res.status(500).json({ error: 'Failed to delete payment' });
   }
 });
 

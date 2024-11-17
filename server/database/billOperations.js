@@ -79,102 +79,191 @@ export const deletePayee = async (userId, payeeId) => {
 
 // Bill Operations
 export const getBills = async (userId) => {
-  return await prisma.bills.findMany({
-    where: { userId },
-    include: {
-      category: true,
-      payee: true,
-      payments: true,
-    },
-    orderBy: {
-      dueDate: 'asc',
-    },
-  });
+  try {
+    return await prisma.bill.findMany({
+      where: { userId },
+      include: {
+        category: true,
+        history: true,
+      },
+      orderBy: {
+        dueDate: 'asc',
+      },
+    });
+  } catch (error) {
+    console.error('Error in getBills:', error);
+    throw error;
+  }
 };
 
 export const createBill = async (userId, billData) => {
   const {
+    name,
     amount,
     dueDate,
-    payeeId,
     categoryId,
     description,
     isOneTime,
-    payeeName,
     isPaid,
     paidDate,
   } = billData;
 
-  return await prisma.bills.create({
+  return await prisma.bill.create({
     data: {
       userId,
+      name,
       amount: parseFloat(amount),
       dueDate: new Date(dueDate),
-      payeeId: payeeId ? parseInt(payeeId) : null,
       categoryId: parseInt(categoryId),
       description,
       isOneTime: Boolean(isOneTime),
-      payeeName,
       isPaid: Boolean(isPaid),
       paidDate: paidDate ? new Date(paidDate) : null,
     },
     include: {
       category: true,
-      payee: true,
-      payments: true,
+      history: true,
     },
   });
 };
 
 export const updateBill = async (userId, billId, billData) => {
   const {
+    name,
     amount,
     dueDate,
-    payeeId,
     categoryId,
     description,
     isOneTime,
-    payeeName,
     isPaid,
     paidDate,
   } = billData;
 
-  return await prisma.bills.update({
+  // First, update the bill
+  const updatedBill = await prisma.bill.update({
     where: {
       id: parseInt(billId),
       userId,
     },
     data: {
+      name,
       amount: parseFloat(amount),
       dueDate: new Date(dueDate),
-      payeeId: payeeId ? parseInt(payeeId) : null,
       categoryId: parseInt(categoryId),
       description,
       isOneTime: Boolean(isOneTime),
-      payeeName,
       isPaid: Boolean(isPaid),
       paidDate: paidDate ? new Date(paidDate) : null,
     },
     include: {
       category: true,
-      payee: true,
-      payments: true,
+      history: true,
     },
   });
+
+  // If the bill is marked as paid, create a payment history record
+  if (isPaid && paidDate) {
+    await prisma.billHistory.create({
+      data: {
+        billId: parseInt(billId),
+        amount: parseFloat(amount),
+        dueDate: new Date(dueDate),
+        paidDate: new Date(paidDate),
+      },
+    });
+  }
+
+  return updatedBill;
 };
 
 export const deleteBill = async (userId, billId) => {
-  // Delete associated payments first
-  await prisma.bill_payments.deleteMany({
+  // Delete associated history first
+  await prisma.billHistory.deleteMany({
     where: {
       billId: parseInt(billId),
     },
   });
 
-  return await prisma.bills.delete({
+  // Then delete the bill
+  return await prisma.bill.delete({
     where: {
       id: parseInt(billId),
       userId,
+    },
+  });
+};
+
+export const markBillPaid = async (userId, billId, paymentDate) => {
+  const bill = await prisma.bill.findUnique({
+    where: {
+      id: parseInt(billId),
+      userId,
+    },
+  });
+
+  if (!bill) {
+    throw new Error('Bill not found');
+  }
+
+  // Create payment history record
+  await prisma.billHistory.create({
+    data: {
+      billId: parseInt(billId),
+      amount: bill.amount,
+      dueDate: bill.dueDate,
+      paidDate: new Date(paymentDate),
+    },
+  });
+
+  // Update bill status
+  return await prisma.bill.update({
+    where: {
+      id: parseInt(billId),
+      userId,
+    },
+    data: {
+      isPaid: true,
+      paidDate: new Date(paymentDate),
+    },
+    include: {
+      category: true,
+      history: true,
+    },
+  });
+};
+
+export const markBillUnpaid = async (userId, billId) => {
+  // Delete the most recent payment history record
+  const latestPayment = await prisma.billHistory.findFirst({
+    where: {
+      billId: parseInt(billId),
+    },
+    orderBy: {
+      paidDate: 'desc',
+    },
+  });
+
+  if (latestPayment) {
+    await prisma.billHistory.delete({
+      where: {
+        id: latestPayment.id,
+      },
+    });
+  }
+
+  // Update bill status
+  return await prisma.bill.update({
+    where: {
+      id: parseInt(billId),
+      userId,
+    },
+    data: {
+      isPaid: false,
+      paidDate: null,
+    },
+    include: {
+      category: true,
+      history: true,
     },
   });
 };
@@ -289,4 +378,6 @@ export default {
   deleteBill,
   addPayment,
   generateRecurringBills,
+  markBillPaid,
+  markBillUnpaid,
 }; 

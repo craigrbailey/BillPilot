@@ -1,60 +1,62 @@
-import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 
-const API_BASE_URL = 'http://localhost:3000';
+export const API_BASE_URL = 'http://localhost:3000/api';
 
 // Function to handle unauthorized/forbidden access
 const handleAuthError = () => {
+  // Clear stored credentials
   localStorage.removeItem('token');
   localStorage.removeItem('user');
+  
+  // Redirect to login page
   window.location.href = '/login';
-};
-
-const getHeaders = () => {
-  const token = localStorage.getItem('token');
-  return {
-    'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-};
-
-// Helper function to handle API responses
-const handleResponse = async (response) => {
-  if (response.status === 401 || response.status === 403) {
-    handleAuthError();
-    throw new Error('Authentication required');
-  }
-
-  const data = await response.json();
-  if (!response.ok) {
-    if (data.error === 'Invalid token') {
-      handleAuthError();
-      throw new Error('Authentication required');
-    }
-    throw new Error(data.error || 'API request failed');
-  }
-  return data;
 };
 
 // Global fetch wrapper with error handling
 const fetchWithAuth = async (url, options = {}) => {
+  const token = localStorage.getItem('token');
+  
+  const defaultOptions = {
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    },
+  };
+
   try {
     const response = await fetch(url, {
+      ...defaultOptions,
       ...options,
       headers: {
-        ...getHeaders(),
-        ...(options.headers || {}),
+        ...defaultOptions.headers,
+        ...options.headers,
       },
     });
-    return handleResponse(response);
+
+    // Handle authentication errors
+    if (response.status === 401 || response.status === 403) {
+      handleAuthError();
+      throw new Error('Authentication required');
+    }
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'API request failed');
+    }
+
+    return response.json();
   } catch (error) {
-    if (error.message === 'Authentication required') {
+    // Check if error is auth-related
+    if (error.message === 'Authentication required' || 
+        error.message === 'Invalid token' ||
+        error.message === 'Token expired') {
       handleAuthError();
     }
     throw error;
   }
 };
 
-// Auth endpoints - Don't use fetchWithAuth for login/register
+// Auth endpoints
 export const login = async (email, password) => {
   try {
     const response = await fetch(`${API_BASE_URL}/auth/login`, {
@@ -68,40 +70,38 @@ export const login = async (email, password) => {
       throw new Error(data.error || 'Login failed');
     }
 
-    // Store the token immediately
-    if (data.token) {
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
-    }
+    // Store credentials on successful login
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('user', JSON.stringify(data.user));
 
     return data;
   } catch (error) {
-    throw new Error(error.message || 'Login failed');
-  }
-};
-
-export const register = async (email, password) => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/auth/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    });
-    
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.error || 'Registration failed');
-    }
-    return data;
-  } catch (error) {
-    throw new Error(error.message || 'Registration failed');
+    console.error('Login error:', error);
+    throw error;
   }
 };
 
 export const logout = async () => {
-  return fetchWithAuth(`${API_BASE_URL}/auth/logout`, {
-    method: 'POST',
-  });
+  try {
+    await fetchWithAuth(`${API_BASE_URL}/auth/logout`, {
+      method: 'POST',
+    });
+  } finally {
+    // Always clear credentials on logout attempt
+    handleAuthError();
+  }
+};
+
+// Check auth status
+export const checkAuth = () => {
+  const token = localStorage.getItem('token');
+  const user = localStorage.getItem('user');
+  
+  if (!token || !user) {
+    handleAuthError();
+    return false;
+  }
+  return true;
 };
 
 // Bills endpoints
@@ -396,6 +396,39 @@ export const updatePayee = async (id, payeeData) => {
 export const deletePayee = async (id) => {
   return fetchWithAuth(`${API_BASE_URL}/payees/${id}`, {
     method: 'DELETE',
+  });
+};
+
+// Add this function to your existing api.js
+export const resetDatabase = async () => {
+  return fetchWithAuth(`${API_BASE_URL}/settings/reset-database`, {
+    method: 'POST',
+  });
+};
+
+// Add these to your existing api.js file
+
+export const fetchNotificationSettings = async () => {
+  return fetchWithAuth(`${API_BASE_URL}/settings/notifications`);
+};
+
+export const updateNotificationProvider = async (providerType, settings) => {
+  return fetchWithAuth(`${API_BASE_URL}/settings/notifications/provider/${providerType}`, {
+    method: 'PUT',
+    body: JSON.stringify(settings),
+  });
+};
+
+export const updateNotificationType = async (type, settings) => {
+  return fetchWithAuth(`${API_BASE_URL}/settings/notifications/type/${type}`, {
+    method: 'PUT',
+    body: JSON.stringify(settings),
+  });
+};
+
+export const testNotificationProvider = async (providerType) => {
+  return fetchWithAuth(`${API_BASE_URL}/settings/notifications/test/${providerType}`, {
+    method: 'POST',
   });
 };
   

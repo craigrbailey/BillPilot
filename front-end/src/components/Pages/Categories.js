@@ -5,16 +5,21 @@ import {
   Typography,
   IconButton,
   Button,
-  TextField,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemSecondaryAction,
   CircularProgress,
   Alert,
-  Tooltip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
-import { Add as AddIcon } from '@mui/icons-material';
+import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import * as api from '../../utils/api';
 import CategoryDialog from '../Categories/CategoryDialog';
 import CategoryAnalytics from '../Categories/CategoryAnalytics';
-import { useNotification } from '../../contexts/NotificationContext';
 
 const Categories = () => {
   const [categories, setCategories] = useState([]);
@@ -23,7 +28,7 @@ const Categories = () => {
   const [error, setError] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
-  const { showNotification } = useNotification();
+  const [deleteDialog, setDeleteDialog] = useState({ open: false, category: null });
 
   const fetchData = async () => {
     try {
@@ -52,10 +57,8 @@ const Categories = () => {
       await api.createCategory(categoryData);
       await fetchData();
       setDialogOpen(false);
-      showNotification('Category created successfully');
     } catch (err) {
       setError(err.message);
-      showNotification('Failed to create category', 'error');
     }
   };
 
@@ -65,10 +68,18 @@ const Categories = () => {
       await fetchData();
       setDialogOpen(false);
       setSelectedCategory(null);
-      showNotification('Category updated successfully');
     } catch (err) {
       setError(err.message);
-      showNotification('Failed to update category', 'error');
+    }
+  };
+
+  const handleDeleteCategory = async (category) => {
+    try {
+      await api.deleteCategory(category.id);
+      await fetchData();
+      setDeleteDialog({ open: false, category: null });
+    } catch (err) {
+      setError(err.message);
     }
   };
 
@@ -88,8 +99,16 @@ const Categories = () => {
         </Alert>
       )}
 
-      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'flex-end' }}>
-        <Tooltip title="Add Category">
+      {/* Chart Section */}
+      <CategoryAnalytics 
+        categories={categories} 
+        bills={bills}
+      />
+
+      {/* Categories List Section */}
+      <Paper sx={{ p: 2, mt: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h6">Categories</Typography>
           <Button
             variant="contained"
             onClick={() => {
@@ -100,14 +119,48 @@ const Categories = () => {
           >
             Add Category
           </Button>
-        </Tooltip>
-      </Box>
+        </Box>
 
-      <CategoryAnalytics 
-        categories={categories} 
-        bills={bills}
-      />
+        <List>
+          {categories.map((category) => (
+            <ListItem 
+              key={category.id}
+              sx={{
+                borderRadius: 1,
+                mb: 1,
+                '&:hover': {
+                  bgcolor: 'action.hover',
+                },
+              }}
+            >
+              <Box
+                sx={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  bgcolor: category.color,
+                  mr: 2,
+                }}
+              />
+              <ListItemText 
+                primary={category.name}
+                secondary={`${bills.filter(bill => bill.categoryId === category.id).length} bills`}
+              />
+              <ListItemSecondaryAction>
+                <IconButton
+                  edge="end"
+                  onClick={() => setDeleteDialog({ open: true, category })}
+                  aria-label="delete"
+                >
+                  <DeleteIcon />
+                </IconButton>
+              </ListItemSecondaryAction>
+            </ListItem>
+          ))}
+        </List>
+      </Paper>
 
+      {/* Category Dialog */}
       <CategoryDialog
         open={dialogOpen}
         onClose={() => {
@@ -117,6 +170,36 @@ const Categories = () => {
         onSubmit={selectedCategory ? handleUpdateCategory : handleCreateCategory}
         initialData={selectedCategory}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialog.open}
+        onClose={() => setDeleteDialog({ open: false, category: null })}
+      >
+        <DialogTitle>Delete Category</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete the category "{deleteDialog.category?.name}"?
+            {bills.filter(bill => bill.categoryId === deleteDialog.category?.id).length > 0 && (
+              <Typography color="error" sx={{ mt: 1 }}>
+                Warning: This category has associated bills. You'll need to reassign or delete them first.
+              </Typography>
+            )}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialog({ open: false, category: null })}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={() => handleDeleteCategory(deleteDialog.category)}
+            color="error"
+            variant="contained"
+          >
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

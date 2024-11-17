@@ -1,121 +1,29 @@
 import { useState, useEffect } from 'react';
 import {
   Box,
-  Paper,
-  Typography,
   Grid,
-  List,
-  ListItem,
-  ListItemText,
-  Chip,
   CircularProgress,
   Alert,
-  Badge,
-  Tooltip,
-  IconButton,
-  alpha,
+  Snackbar,
 } from '@mui/material';
-import { StaticDatePicker, PickersDay } from '@mui/x-date-pickers';
-import {
-  startOfWeek,
-  endOfWeek,
-  eachDayOfInterval,
-  format,
-  isSameDay,
-  isWithinInterval,
-  startOfMonth,
-  endOfMonth,
-  parseISO,
-  addWeeks,
-  subWeeks,
-} from 'date-fns';
+import { motion, AnimatePresence } from 'framer-motion';
 import * as api from '../../utils/api';
-import { useTheme } from '@mui/material/styles';
-import { styled } from '@mui/material';
-import { markBillPaid } from '../../utils/api';
-import MonthlyComparisonChart from '../Dashboard/MonthlyComparisonChart';
-import MonthlyFinancialSummary from '../Dashboard/MonthlyFinancialSummary';
-import {
-  ChevronLeft as ChevronLeftIcon,
-  ChevronRight as ChevronRightIcon,
-} from '@mui/icons-material';
-import { formatAmount } from '../../utils/formatters';
+import { useNavigate } from 'react-router-dom';
 import BillPaymentDialog from '../Bills/BillPaymentDialog';
-import { CheckCircle as CheckCircleIcon, RadioButtonUnchecked as RadioButtonUncheckedIcon } from '@mui/icons-material';
 import BillUnpayDialog from '../Bills/BillUnpayDialog';
-
-const StyledTooltip = styled(({ className, ...props }) => (
-  <Tooltip {...props} classes={{ popper: className }} />
-))(({ theme }) => ({
-  '& .MuiTooltip-tooltip': {
-    backgroundColor: theme.palette.background.paper,
-    color: theme.palette.text.primary,
-    boxShadow: theme.shadows[4],
-    padding: theme.spacing(1.5),
-    maxWidth: 'none',
-  },
-}));
-
-const CalendarBillItem = ({ bill, onMarkPaid, onUnpay }) => (
-  <Box
-    sx={{
-      p: 1,
-      mb: 1,
-      height: '60px',
-      borderRadius: 1,
-      bgcolor: 'background.paper',
-      boxShadow: 1,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      position: 'relative',
-    }}
-  >
-    <Box
-      sx={{
-        position: 'absolute',
-        top: 8,
-        right: 8,
-        width: 8,
-        height: 8,
-        borderRadius: '50%',
-        bgcolor: bill.category.color,
-      }}
-    />
-    
-    <Box sx={{ flex: 1 }}>
-      <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }} noWrap>
-        {bill.name}
-      </Typography>
-      <Typography variant="body2" color="error" noWrap>
-        {formatAmount(bill.amount)}
-      </Typography>
-    </Box>
-
-    <Chip
-      label={bill.isPaid ? "Paid" : "Unpaid"}
-      size="small"
-      color={bill.isPaid ? "success" : "warning"}
-      onClick={() => {
-        if (bill.isPaid) {
-          onUnpay(bill);
-        } else {
-          onMarkPaid(bill);
-        }
-      }}
-      sx={{ ml: 1 }}
-    />
-  </Box>
-);
+import CalendarView from '../Dashboard/CalendarView';
+import WeekView from '../Dashboard/Calendar/WeekView';
+import MonthlyComparisonChart from '../Dashboard/MonthlyComparisonChart';
+import FinancialOverview from '../Dashboard/FinancialOverview';
+import { startOfWeek, addDays, isSameDay } from 'date-fns';
 
 const Dashboard = () => {
-  const theme = useTheme();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [bills, setBills] = useState([]);
   const [incomes, setIncomes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [notification, setNotification] = useState({ open: false, message: '', severity: 'success' });
   const [paymentDialog, setPaymentDialog] = useState({
     open: false,
     bill: null
@@ -124,17 +32,28 @@ const Dashboard = () => {
     open: false,
     bill: null
   });
+  const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date()));
+  const navigate = useNavigate();
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 60000);
+  // Get week days for the current week
+  const weekDays = Array.from({ length: 7 }, (_, i) => 
+    addDays(currentWeekStart, i)
+  );
 
-    return () => clearInterval(timer);
-  }, []);
+  // Helper function to get items for a specific date
+  const getItemsForDate = (date, items) => {
+    return items.filter(item => {
+      const itemDate = new Date(item.dueDate || item.nextPayDate);
+      return isSameDay(itemDate, date);
+    });
+  };
 
   const fetchData = async () => {
     try {
+      if (!api.checkAuth()) {
+        return;
+      }
+
       setLoading(true);
       const [billsData, incomesData] = await Promise.all([
         api.fetchBills(),
@@ -144,8 +63,12 @@ const Dashboard = () => {
       setIncomes(incomesData);
       setError(null);
     } catch (err) {
-      setError('Failed to load dashboard data');
-      console.error(err);
+      if (err.message === 'Authentication required') {
+        navigate('/login');
+      } else {
+        setError('Failed to load dashboard data');
+        console.error(err);
+      }
     } finally {
       setLoading(false);
     }
@@ -154,53 +77,6 @@ const Dashboard = () => {
   useEffect(() => {
     fetchData();
   }, []);
-
-  const handleMarkPaid = async (billId) => {
-    try {
-      await markBillPaid(billId);
-      fetchData();
-    } catch (error) {
-      console.error('Failed to mark bill as paid:', error);
-      setError('Failed to mark bill as paid');
-    }
-  };
-
-  const handlePreviousWeek = () => {
-    setSelectedDate(prevDate => subWeeks(prevDate, 1));
-  };
-
-  const handleNextWeek = () => {
-    setSelectedDate(prevDate => addWeeks(prevDate, 1));
-  };
-
-  const weekDays = eachDayOfInterval({
-    start: startOfWeek(selectedDate, { weekStartsOn: 0 }),
-    end: endOfWeek(selectedDate, { weekStartsOn: 0 }),
-  });
-
-  const monthInterval = {
-    start: startOfMonth(selectedDate),
-    end: endOfMonth(selectedDate),
-  };
-
-  const getItemsForDate = (date, items) => {
-    return items.filter(item => 
-      isSameDay(parseISO(item.dueDate || item.nextPayDate), date)
-    );
-  };
-
-  const getItemsForInterval = (interval, items) => {
-    return items.filter(item => 
-      isWithinInterval(parseISO(item.dueDate || item.nextPayDate), interval)
-    );
-  };
-
-  const getFutureBills = (bills) => {
-    const today = new Date();
-    return bills
-      .filter(bill => new Date(bill.dueDate) > today)
-      .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
-  };
 
   const handleMarkAsPaid = (bill) => {
     setPaymentDialog({
@@ -218,535 +94,73 @@ const Dashboard = () => {
 
   const handlePaymentSubmit = async (paymentDate) => {
     try {
-      await api.updateBill(paymentDialog.bill.id, {
+      const updatedBill = await api.updateBill(paymentDialog.bill.id, {
         ...paymentDialog.bill,
         isPaid: true,
         paymentDate: paymentDate
       });
-      fetchData(); // Refresh dashboard data
+
+      // Update bills state without fetching
+      setBills(prevBills => 
+        prevBills.map(bill => 
+          bill.id === updatedBill.id ? updatedBill : bill
+        )
+      );
+
       handlePaymentDialogClose();
+      setNotification({
+        open: true,
+        message: `${updatedBill.name} marked as paid`,
+        severity: 'success'
+      });
     } catch (error) {
       console.error('Failed to update payment status:', error);
+      setNotification({
+        open: true,
+        message: 'Failed to mark bill as paid',
+        severity: 'error'
+      });
     }
   };
 
   const handleUnpayBill = async (bill) => {
     try {
-      await api.updateBill(bill.id, { ...bill, isPaid: false, paidDate: null });
-      fetchData();
+      const updatedBill = await api.updateBill(bill.id, { 
+        ...bill, 
+        isPaid: false, 
+        paidDate: null 
+      });
+
+      // Update bills state without fetching
+      setBills(prevBills => 
+        prevBills.map(b => 
+          b.id === updatedBill.id ? updatedBill : b
+        )
+      );
+
       setUnpayDialog({ open: false, bill: null });
+      setNotification({
+        open: true,
+        message: `${updatedBill.name} marked as unpaid`,
+        severity: 'info'
+      });
     } catch (error) {
       console.error('Failed to unmark bill as paid:', error);
+      setNotification({
+        open: true,
+        message: 'Failed to unmark bill as paid',
+        severity: 'error'
+      });
     }
   };
 
-  const WeekView = ({ bills, onMarkPaid }) => (
-    <Paper sx={{ p: 2, mb: 3 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-        <IconButton onClick={handlePreviousWeek}>
-          <ChevronLeftIcon />
-        </IconButton>
-        <Typography variant="h6">
-          {format(weekDays[0], 'MMM d')} - {format(weekDays[6], 'MMM d, yyyy')}
-        </Typography>
-        <IconButton onClick={handleNextWeek}>
-          <ChevronRightIcon />
-        </IconButton>
-      </Box>
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {/* Days Row */}
-        <Grid container spacing={2}>
-          {weekDays.map((day) => (
-            <Grid item xs key={day.toString()}>
-              <Paper 
-                elevation={2}
-                sx={{ 
-                  p: 2,
-                  bgcolor: theme.palette.mode === 'dark' 
-                    ? alpha(theme.palette.background.paper, 0.6) 
-                    : theme.palette.grey[50],
-                  textAlign: 'center',
-                  borderBottom: isSameDay(day, new Date()) 
-                    ? '2px solid'
-                    : '2px solid transparent',
-                  borderColor: isSameDay(day, new Date()) 
-                    ? 'primary.main'
-                    : 'transparent',
-                  transition: 'all 0.2s',
-                  border: '1px solid',
-                  borderColor: theme.palette.mode === 'dark'
-                    ? alpha(theme.palette.divider, 0.1)
-                    : theme.palette.divider,
-                  '&:hover': {
-                    bgcolor: theme.palette.mode === 'dark'
-                      ? alpha(theme.palette.background.paper, 0.8)
-                      : theme.palette.grey[100],
-                    transform: 'translateY(-2px)',
-                    boxShadow: theme.shadows[4],
-                  },
-                  ...(isSameDay(day, new Date()) && {
-                    bgcolor: theme.palette.mode === 'dark'
-                      ? alpha(theme.palette.primary.main, 0.15)
-                      : alpha(theme.palette.primary.main, 0.05),
-                    borderColor: theme.palette.primary.main,
-                    boxShadow: `0 0 0 1px ${alpha(theme.palette.primary.main, 0.2)}`,
-                  }),
-                }}
-              >
-                <Typography variant="h6">
-                  {format(day, 'EEE')}
-                </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
-                  {format(day, 'd')}
-                </Typography>
-              </Paper>
-            </Grid>
-          ))}
-        </Grid>
-
-        {/* Items Container */}
-        <Grid container spacing={2}>
-          {weekDays.map((day) => {
-            const billsDueToday = getItemsForDate(day, bills);
-            const incomeDueToday = getItemsForDate(day, incomes);
-
-            return (
-              <Grid item xs key={`items-${day.toString()}`}>
-                <Box
-                  sx={{
-                    height: '300px',
-                    overflowY: 'auto',
-                    '&::-webkit-scrollbar': {
-                      width: '8px',
-                    },
-                    '&::-webkit-scrollbar-track': {
-                      background: '#f1f1f1',
-                    },
-                    '&::-webkit-scrollbar-thumb': {
-                      background: '#888',
-                      borderRadius: '4px',
-                    },
-                    '&::-webkit-scrollbar-thumb:hover': {
-                      background: '#555',
-                    },
-                  }}
-                >
-                  {/* Bills */}
-                  {billsDueToday.map((bill) => (
-                    <StyledTooltip
-                      key={bill.id}
-                      title={
-                        <Box>
-                          <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
-                            {bill.name}
-                          </Typography>
-                          <Typography variant="body2">
-                            Amount: {formatAmount(bill.amount)}
-                          </Typography>
-                          <Typography variant="body2">
-                            Category: {bill.category.name}
-                          </Typography>
-                          {bill.balance !== null && (
-                            <Typography variant="body2">
-                              Balance: {formatAmount(bill.balance)}
-                            </Typography>
-                          )}
-                          {bill.notes && (
-                            <Typography 
-                              variant="body2" 
-                              sx={{ 
-                                mt: 1,
-                                p: 1, 
-                                bgcolor: 'action.hover',
-                                borderRadius: 1,
-                                fontStyle: 'italic'
-                              }}
-                            >
-                              Note: {bill.notes}
-                            </Typography>
-                          )}
-                          {bill.isPaid && (
-                            <Typography variant="body2" color="success.main">
-                              Status: Paid
-                            </Typography>
-                          )}
-                        </Box>
-                      }
-                      arrow
-                      placement="top"
-                    >
-                      <Box
-                        sx={{
-                          p: 1,
-                          mb: 1,
-                          height: '60px',
-                          borderRadius: 1,
-                          bgcolor: 'background.paper',
-                          boxShadow: 1,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          position: 'relative',
-                          '&:hover': {
-                            boxShadow: 1,
-                            transform: 'none',
-                          },
-                        }}
-                      >
-                        <Box
-                          sx={{
-                            position: 'absolute',
-                            top: 8,
-                            right: 8,
-                            width: 8,
-                            height: 8,
-                            borderRadius: '50%',
-                            bgcolor: bill.category.color,
-                          }}
-                        />
-                        
-                        <Box sx={{ flex: 1 }}>
-                          <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }} noWrap>
-                            {bill.name}
-                          </Typography>
-                          <Typography variant="body2" color="error" noWrap>
-                            {formatAmount(bill.amount)}
-                          </Typography>
-                        </Box>
-
-                        <Chip
-                          label={bill.isPaid ? "Paid" : "Unpaid"}
-                          size="small"
-                          color={bill.isPaid ? "success" : "warning"}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (bill.isPaid) {
-                              setUnpayDialog({ open: true, bill });
-                            } else {
-                              handleMarkAsPaid(bill);
-                            }
-                          }}
-                          sx={{ ml: 1 }}
-                        />
-                      </Box>
-                    </StyledTooltip>
-                  ))}
-
-                  {/* Income */}
-                  {incomeDueToday.map((income) => (
-                    <StyledTooltip
-                      key={income.id}
-                      title={
-                        <Box>
-                          <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: 'success.main' }}>
-                            {income.name}
-                          </Typography>
-                          <Typography variant="body2">
-                            Amount: {formatAmount(income.amount)}
-                          </Typography>
-                          <Typography variant="body2">
-                            Frequency: {income.frequency.charAt(0) + income.frequency.slice(1).toLowerCase().replace('_', ' ')}
-                          </Typography>
-                          {income.lastPaid && (
-                            <Typography variant="body2">
-                              Last Paid: {format(new Date(income.lastPaid), 'MMM dd, yyyy')}
-                            </Typography>
-                          )}
-                        </Box>
-                      }
-                      arrow
-                      placement="top"
-                    >
-                      <Box
-                        sx={{
-                          p: 1,
-                          mb: 1,
-                          height: '60px',
-                          borderRadius: 1,
-                          bgcolor: 'background.paper',
-                          boxShadow: 1,
-                          display: 'flex',
-                          alignItems: 'center',
-                          position: 'relative',
-                          '&:hover': {
-                            boxShadow: 1,
-                            transform: 'none',
-                          },
-                        }}
-                      >
-                        <Box
-                          sx={{
-                            position: 'absolute',
-                            top: 8,
-                            right: 8,
-                            width: 8,
-                            height: 8,
-                            borderRadius: '50%',
-                            bgcolor: 'success.main',
-                          }}
-                        />
-                        
-                        <Box sx={{ flex: 1 }}>
-                          <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }} noWrap>
-                            {income.name}
-                          </Typography>
-                          <Typography variant="body2" color="success.main" noWrap>
-                            {formatAmount(income.amount)}
-                          </Typography>
-                        </Box>
-                      </Box>
-                    </StyledTooltip>
-                  ))}
-                </Box>
-              </Grid>
-            );
-          })}
-        </Grid>
-      </Box>
-    </Paper>
-  );
-
-  const MonthlyOverview = () => {
-    const monthlyBills = getItemsForInterval(monthInterval, bills);
-    const monthlyIncomes = getItemsForInterval(monthInterval, incomes);
-
-    const totalBills = monthlyBills.reduce((sum, bill) => sum + bill.amount, 0);
-    const totalIncome = monthlyIncomes.reduce((sum, income) => sum + income.amount, 0);
-
-    return (
-      <Grid container spacing={3} sx={{ mb: 3 }}>
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 2, height: '400px', display: 'flex', flexDirection: 'column' }}>
-            <Typography variant="h6" gutterBottom color="error">
-              Upcoming Bills - Total: {formatAmount(totalBills)}
-            </Typography>
-            <Box sx={{ 
-              overflowY: 'auto', 
-              flex: 1,
-              '&::-webkit-scrollbar': {
-                width: '8px',
-              },
-              '&::-webkit-scrollbar-track': {
-                background: '#f1f1f1',
-              },
-              '&::-webkit-scrollbar-thumb': {
-                background: '#888',
-                borderRadius: '4px',
-              },
-              '&::-webkit-scrollbar-thumb:hover': {
-                background: '#555',
-              },
-            }}>
-              {monthlyBills.map((bill) => (
-                <Box
-                  key={bill.id}
-                  sx={{
-                    p: 2,
-                    mb: 1,
-                    height: '80px',
-                    borderRadius: 1,
-                    bgcolor: 'background.paper',
-                    boxShadow: 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <Box>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
-                      {bill.name}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Due: {format(new Date(bill.dueDate), 'MMM dd, yyyy')}
-                    </Typography>
-                    {bill.isPaid && (
-                      <Chip 
-                        label="Paid" 
-                        size="small" 
-                        color="success" 
-                        sx={{ mt: 0.5 }}
-                      />
-                    )}
-                  </Box>
-                  <Typography 
-                    variant="h6" 
-                    color="error"
-                    sx={{ minWidth: '100px', textAlign: 'right' }}
-                  >
-                    {formatAmount(bill.amount)}
-                  </Typography>
-                </Box>
-              ))}
-            </Box>
-          </Paper>
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 2, height: '400px', display: 'flex', flexDirection: 'column' }}>
-            <Typography variant="h6" gutterBottom color="success.main">
-              Expected Income - Total: {formatAmount(totalIncome)}
-            </Typography>
-            <Box sx={{ 
-              overflowY: 'auto', 
-              flex: 1,
-              '&::-webkit-scrollbar': {
-                width: '8px',
-              },
-              '&::-webkit-scrollbar-track': {
-                background: '#f1f1f1',
-              },
-              '&::-webkit-scrollbar-thumb': {
-                background: '#888',
-                borderRadius: '4px',
-              },
-              '&::-webkit-scrollbar-thumb:hover': {
-                background: '#555',
-              },
-            }}>
-              {monthlyIncomes.map((income) => (
-                <Box
-                  key={income.id}
-                  sx={{
-                    p: 2,
-                    mb: 1,
-                    height: '80px',
-                    borderRadius: 1,
-                    bgcolor: 'background.paper',
-                    boxShadow: 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <Box>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
-                      {income.name}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Expected: {format(new Date(income.nextPayDate), 'MMM dd, yyyy')}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {income.frequency === 'ONE_TIME' ? 'Single Payment' : 
-                        income.frequency.charAt(0) + income.frequency.slice(1).toLowerCase().replace('_', ' ')
-                      }
-                    </Typography>
-                  </Box>
-                  <Typography 
-                    variant="h6" 
-                    color="success.main"
-                    sx={{ minWidth: '100px', textAlign: 'right' }}
-                  >
-                    {formatAmount(income.amount)}
-                  </Typography>
-                </Box>
-              ))}
-            </Box>
-          </Paper>
-        </Grid>
-      </Grid>
-    );
+  const handleCloseNotification = () => {
+    setNotification(prev => ({ ...prev, open: false }));
   };
 
-  const renderDay = (day, _value, DayComponentProps) => {
-    const billsDueToday = getItemsForDate(day, bills);
-    const incomeDueToday = getItemsForDate(day, incomes);
-    const hasBills = billsDueToday.length > 0;
-    const hasIncome = incomeDueToday.length > 0;
-
-    const tooltipContent = (
-      <Box>
-        {hasBills && (
-          <Box sx={{ mb: hasIncome ? 1 : 0 }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: 'error.main' }}>
-              Bills Due:
-            </Typography>
-            {billsDueToday.map((bill) => (
-              <Box key={bill.id} sx={{ ml: 1 }}>
-                <Typography variant="body2">
-                  {bill.name} - {formatAmount(bill.amount)}
-                </Typography>
-                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                  Category: {bill.category.name}
-                </Typography>
-              </Box>
-            ))}
-          </Box>
-        )}
-        {hasIncome && (
-          <Box>
-            <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: 'success.main' }}>
-              Expected Income:
-            </Typography>
-            {incomeDueToday.map((income) => (
-              <Box key={income.id} sx={{ ml: 1 }}>
-                <Typography variant="body2">
-                  {income.name} - {formatAmount(income.amount)}
-                </Typography>
-                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                  {income.frequency.charAt(0) + income.frequency.slice(1).toLowerCase()}
-                </Typography>
-              </Box>
-            ))}
-          </Box>
-        )}
-      </Box>
-    );
-
-    const dayElement = (
-      <Badge
-        key={day.toString()}
-        overlap="circular"
-        badgeContent={
-          (hasBills || hasIncome) ? (
-            <Box sx={{ 
-              display: 'flex', 
-              flexDirection: 'column', 
-              gap: '2px',
-              position: 'absolute',
-              top: '2px',
-              right: '2px'
-            }}>
-              {billsDueToday.map((bill) => (
-                <Box
-                  key={bill.id}
-                  sx={{
-                    width: '6px',
-                    height: '6px',
-                    borderRadius: '50%',
-                    backgroundColor: bill.category.color,
-                  }}
-                />
-              ))}
-              {hasIncome && (
-                <Box
-                  sx={{
-                    width: '6px',
-                    height: '6px',
-                    borderRadius: '50%',
-                    backgroundColor: 'success.main',
-                  }}
-                />
-              )}
-            </Box>
-          ) : null
-        }
-      >
-        <PickersDay {...DayComponentProps} day={day} />
-      </Badge>
-    );
-
-    return (hasBills || hasIncome) ? (
-      <StyledTooltip 
-        title={tooltipContent}
-        placement="top"
-        arrow
-      >
-        {dayElement}
-      </StyledTooltip>
-    ) : dayElement;
+  const handleWeekChange = (newDate) => {
+    setCurrentWeekStart(startOfWeek(newDate));
   };
-
-  const monthlyBills = getItemsForInterval(monthInterval, bills);
-  const monthlyIncomes = getItemsForInterval(monthInterval, incomes);
 
   if (loading) {
     return (
@@ -757,380 +171,69 @@ const Dashboard = () => {
   }
 
   return (
-    <Box sx={{ 
-      maxWidth: '100%', 
-      margin: '0 auto',
-      p: 3,
-      display: 'grid',
-      gap: 3,
-      gridTemplateColumns: 'repeat(12, 1fr)',
-      '& > *': {
-        minHeight: 0, // Prevents grid item overflow
-      }
-    }}>
-      <Box sx={{ 
-        gridColumn: 'span 12',
-        textAlign: 'center',
-        mb: 2,
-      }}>
-        <Typography 
-          variant="h3" 
-          sx={{ 
-            fontWeight: 'bold',
-            mb: 0.5,
-          }}
-        >
-          {format(currentTime, 'EEEE, MMMM d, yyyy')}
-        </Typography>
-        <Typography 
-          variant="h5" 
-          sx={{ 
-            color: 'text.secondary',
-            fontWeight: 'medium',
-          }}
-        >
-          {format(currentTime, 'h:mm a')}
-        </Typography>
-      </Box>
-
+    <Box sx={{ p: 3 }}>
       {error && (
-        <Box sx={{ gridColumn: 'span 12' }}>
-          <Alert severity="error">{error}</Alert>
-        </Box>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
       )}
 
-      {/* Monthly Summary - Full Width */}
-      <Box sx={{ gridColumn: 'span 12' }}>
-        <MonthlyFinancialSummary bills={bills} incomes={incomes} />
-      </Box>
-
-      {/* Chart and Calendar Side by Side */}
-      <Box sx={{ gridColumn: { xs: 'span 12', lg: 'span 8' } }}>
-        <MonthlyComparisonChart bills={bills} incomes={incomes} />
-      </Box>
-
-      <Box sx={{ gridColumn: { xs: 'span 12', lg: 'span 4' } }}>
-        <Paper sx={{ p: 2, height: '400px', display: 'flex', flexDirection: 'column' }}>
-          <Typography variant="h6" gutterBottom>
-            Calendar Overview
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 2, height: '100%' }}>
+      <Grid container spacing={3}>
+        {/* Main Content - Calendar and Chart */}
+        <Grid item xs={12} md={9}>
+          <Grid container spacing={3}>
             {/* Calendar */}
-            <Box sx={{ flex: '0 0 auto' }}>
-              <StaticDatePicker
-                displayStaticWrapperAs="desktop"
-                value={selectedDate}
-                onChange={(newValue) => setSelectedDate(newValue)}
-                renderInput={(params) => <div {...params} />}
-                renderDay={renderDay}
+            <Grid item xs={12}>
+              <CalendarView
+                selectedDate={selectedDate}
+                onDateChange={setSelectedDate}
+                bills={bills}
+                incomes={incomes}
               />
-            </Box>
+            </Grid>
 
-            {/* Selected Day Items */}
-            <Box sx={{ 
-              flex: 1,
-              display: 'flex',
-              flexDirection: 'column',
-              overflowY: 'auto',
-              '&::-webkit-scrollbar': {
-                width: '8px',
-              },
-              '&::-webkit-scrollbar-track': {
-                background: '#f1f1f1',
-                borderRadius: '4px',
-              },
-              '&::-webkit-scrollbar-thumb': {
-                background: '#888',
-                borderRadius: '4px',
-                '&:hover': {
-                  background: '#555',
-                },
-              },
-            }}>
-              <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'bold' }}>
-                {format(selectedDate, 'MMMM d, yyyy')}
-              </Typography>
+            {/* Week View */}
+            <Grid item xs={12}>
+              <WeekView
+                weekDays={weekDays}
+                bills={bills}
+                incomes={incomes}
+                getItemsForDate={getItemsForDate}
+                onMarkBillPaid={handleMarkAsPaid}
+                onUnpayBill={(bill) => setUnpayDialog({ open: true, bill })}
+                onWeekChange={handleWeekChange}
+              />
+            </Grid>
 
-              {/* Bills Section */}
-              {getItemsForDate(selectedDate, bills).length > 0 && (
-                <>
-                  <Typography variant="subtitle2" color="error" sx={{ mt: 1, fontWeight: 'bold' }}>
-                    Bills Due
-                  </Typography>
-                  {getItemsForDate(selectedDate, bills).map((bill) => (
-                    <CalendarBillItem 
-                      key={bill.id} 
-                      bill={bill}
-                      onMarkPaid={handleMarkAsPaid}
-                      onUnpay={(bill) => setUnpayDialog({ open: true, bill })}
-                    />
-                  ))}
-                </>
-              )}
+            {/* Chart */}
+            <Grid item xs={12}>
+              <MonthlyComparisonChart bills={bills} incomes={incomes} />
+            </Grid>
+          </Grid>
+        </Grid>
 
-              {/* Income Section */}
-              {getItemsForDate(selectedDate, incomes).length > 0 && (
-                <>
-                  <Typography variant="subtitle2" color="success.main" sx={{ mt: 2, fontWeight: 'bold' }}>
-                    Expected Income
-                  </Typography>
-                  {getItemsForDate(selectedDate, incomes).map((income) => (
-                    <Box
-                      key={income.id}
-                      sx={{
-                        p: 1,
-                        mb: 1,
-                        height: '60px',
-                        borderRadius: 1,
-                        bgcolor: 'background.paper',
-                        boxShadow: 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        position: 'relative',
-                      }}
-                    >
-                      <Box
-                        sx={{
-                          position: 'absolute',
-                          top: 8,
-                          right: 8,
-                          width: 8,
-                          height: 8,
-                          borderRadius: '50%',
-                          bgcolor: 'success.main',
-                        }}
-                      />
-                      
-                      <Box sx={{ flex: 1 }}>
-                        <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }} noWrap>
-                          {income.name}
-                        </Typography>
-                        <Typography variant="body2" color="success.main" noWrap>
-                          {formatAmount(income.amount)}
-                        </Typography>
-                      </Box>
-                    </Box>
-                  ))}
-                </>
-              )}
+        {/* Right Column - Financial Overview */}
+        <Grid item xs={12} md={3}>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={bills.filter(b => b.isPaid).length}
+              initial={{ opacity: 1 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <FinancialOverview
+                bills={bills}
+                incomes={incomes}
+                onMarkPaid={handleMarkAsPaid}
+                onUnpay={(bill) => setUnpayDialog({ open: true, bill })}
+              />
+            </motion.div>
+          </AnimatePresence>
+        </Grid>
+      </Grid>
 
-              {/* No Items Message */}
-              {getItemsForDate(selectedDate, bills).length === 0 && 
-               getItemsForDate(selectedDate, incomes).length === 0 && (
-                <Typography 
-                  variant="body2" 
-                  color="text.secondary" 
-                  sx={{ 
-                    mt: 2,
-                    textAlign: 'center',
-                    fontStyle: 'italic'
-                  }}
-                >
-                  No items scheduled for this date
-                </Typography>
-              )}
-            </Box>
-          </Box>
-        </Paper>
-      </Box>
-
-      {/* Week View - Full Width */}
-      <Box sx={{ gridColumn: 'span 12' }}>
-        <WeekView bills={bills} onMarkPaid={handleMarkPaid} />
-      </Box>
-
-      {/* Bills and Income Side by Side */}
-      <Box sx={{ 
-        gridColumn: { xs: 'span 12', md: 'span 6' },
-        display: 'flex',
-        flexDirection: 'column',
-      }}>
-        <Paper sx={{ p: 2, height: '500px', display: 'flex', flexDirection: 'column' }}>
-          <Typography variant="h6" gutterBottom color="error">
-            Upcoming Bills - Total: {formatAmount(monthlyBills.filter(bill => !bill.isPaid).reduce((sum, bill) => sum + bill.amount, 0))}
-          </Typography>
-          <Box sx={{ 
-            flex: 1,
-            overflowY: 'auto',
-            '&::-webkit-scrollbar': {
-              width: '8px',
-            },
-            '&::-webkit-scrollbar-track': {
-              background: '#f1f1f1',
-              borderRadius: '4px',
-            },
-            '&::-webkit-scrollbar-thumb': {
-              background: '#888',
-              borderRadius: '4px',
-              '&:hover': {
-                background: '#555',
-              },
-            },
-          }}>
-            {monthlyBills
-              .filter(bill => !bill.isPaid)
-              .map((bill) => (
-                <Box
-                  key={bill.id}
-                  sx={{
-                    p: 1,
-                    mb: 1,
-                    height: '60px',
-                    borderRadius: 1,
-                    bgcolor: 'background.paper',
-                    boxShadow: 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    position: 'relative',
-                  }}
-                >
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      top: 8,
-                      right: 8,
-                      width: 8,
-                      height: 8,
-                      borderRadius: '50%',
-                      bgcolor: bill.category.color,
-                    }}
-                  />
-                  
-                  <Box sx={{ flex: 1 }}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }} noWrap>
-                      {bill.name}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" noWrap>
-                      Due: {format(new Date(bill.dueDate), 'MMM dd')}
-                    </Typography>
-                  </Box>
-
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <Typography variant="body2" color="error">
-                      {formatAmount(bill.amount)}
-                    </Typography>
-                    <Chip
-                      label={bill.isPaid ? "Paid" : "Unpaid"}
-                      size="small"
-                      color={bill.isPaid ? "success" : "warning"}
-                      onClick={() => {
-                        if (bill.isPaid) {
-                          setUnpayDialog({ open: true, bill });
-                        } else {
-                          handleMarkAsPaid(bill);
-                        }
-                      }}
-                      sx={{ ml: 1 }}
-                    />
-                  </Box>
-                </Box>
-              ))}
-            {monthlyBills.filter(bill => !bill.isPaid).length === 0 && (
-              <Typography 
-                variant="body2" 
-                color="text.secondary" 
-                sx={{ 
-                  textAlign: 'center',
-                  fontStyle: 'italic',
-                  mt: 2
-                }}
-              >
-                No upcoming bills
-              </Typography>
-            )}
-          </Box>
-        </Paper>
-      </Box>
-
-      <Box sx={{ 
-        gridColumn: { xs: 'span 12', md: 'span 6' },
-        display: 'flex',
-        flexDirection: 'column',
-      }}>
-        <Paper sx={{ p: 2, height: '500px', display: 'flex', flexDirection: 'column' }}>
-          <Typography variant="h6" gutterBottom color="success.main">
-            Expected Income - Total: {formatAmount(monthlyIncomes.reduce((sum, income) => sum + income.amount, 0))}
-          </Typography>
-          <Box sx={{ 
-            flex: 1,
-            overflowY: 'auto',
-            '&::-webkit-scrollbar': {
-              width: '8px',
-            },
-            '&::-webkit-scrollbar-track': {
-              background: '#f1f1f1',
-              borderRadius: '4px',
-            },
-            '&::-webkit-scrollbar-thumb': {
-              background: '#888',
-              borderRadius: '4px',
-              '&:hover': {
-                background: '#555',
-              },
-            },
-          }}>
-            {monthlyIncomes.map((income) => (
-              <Box
-                key={income.id}
-                sx={{
-                  p: 1,
-                  mb: 1,
-                  height: '60px',
-                  borderRadius: 1,
-                  bgcolor: 'background.paper',
-                  boxShadow: 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  position: 'relative',
-                }}
-              >
-                <Box
-                  sx={{
-                    position: 'absolute',
-                    top: 8,
-                    right: 8,
-                    width: 8,
-                    height: 8,
-                    borderRadius: '50%',
-                    bgcolor: 'success.main',
-                  }}
-                />
-                
-                <Box sx={{ flex: 1 }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }} noWrap>
-                    {income.name}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" noWrap>
-                    Expected: {format(new Date(income.nextPayDate), 'MMM dd')}
-                  </Typography>
-                </Box>
-
-                <Typography variant="body2" color="success.main">
-                  {formatAmount(income.amount)}
-                </Typography>
-              </Box>
-            ))}
-            {monthlyIncomes.length === 0 && (
-              <Typography 
-                variant="body2" 
-                color="text.secondary" 
-                sx={{ 
-                  textAlign: 'center',
-                  fontStyle: 'italic',
-                  mt: 2
-                }}
-              >
-                No expected income
-              </Typography>
-            )}
-          </Box>
-        </Paper>
-      </Box>
-
-      {/* Add Payment Dialog */}
+      {/* Dialogs */}
       <BillPaymentDialog
         open={paymentDialog.open}
         bill={paymentDialog.bill}
@@ -1144,6 +247,23 @@ const Dashboard = () => {
         onClose={() => setUnpayDialog({ open: false, bill: null })}
         onConfirm={() => handleUnpayBill(unpayDialog.bill)}
       />
+
+      {/* Notification Snackbar */}
+      <Snackbar
+        open={notification.open}
+        autoHideDuration={3000}
+        onClose={handleCloseNotification}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert 
+          onClose={handleCloseNotification} 
+          severity={notification.severity}
+          variant="filled"
+          elevation={6}
+        >
+          {notification.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

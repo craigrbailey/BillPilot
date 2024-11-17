@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { ThemeProvider, CssBaseline, createTheme } from '@mui/material';
+import { CssBaseline } from '@mui/material';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import Layout from './components/Layout/Layout';
 import Login from './components/Auth/Login';
 import * as api from './utils/api';
 import { NotificationProvider } from './contexts/NotificationContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -34,18 +35,6 @@ function App() {
     checkRecurring();
   }, [user]);
 
-  const theme = createTheme({
-    palette: {
-      mode: user?.settings?.darkMode ? 'dark' : 'light',
-      primary: {
-        main: '#1976d2',
-      },
-      secondary: {
-        main: '#dc004e',
-      },
-    },
-  });
-
   const handleLogin = (userData) => {
     setUser(userData);
   };
@@ -66,7 +55,7 @@ function App() {
   }
 
   return (
-    <ThemeProvider theme={theme}>
+    <ThemeProvider>
       <CssBaseline />
       <NotificationProvider>
         <LocalizationProvider dateAdapter={AdapterDateFns}>

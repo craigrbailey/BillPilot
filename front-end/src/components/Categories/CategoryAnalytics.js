@@ -1,3 +1,4 @@
+import React from 'react';
 import { useState } from 'react';
 import {
   Paper,
@@ -16,6 +17,8 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
+  BarChart,
+  Bar,
 } from 'recharts';
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { formatAmount } from '../../utils/formatters';
@@ -27,7 +30,6 @@ const CategoryAnalytics = ({ bills, categories }) => {
   );
 
   const handleCategoryToggle = (event, newCategories) => {
-    // Ensure at least one category is selected
     if (newCategories.length) {
       setSelectedCategories(newCategories);
     }
@@ -69,6 +71,11 @@ const CategoryAnalytics = ({ bills, categories }) => {
 
   const data = getLast12MonthsData();
 
+  // Format whole amounts
+  const formatWholeAmount = (value) => {
+    return `$${Math.round(value).toLocaleString()}`;
+  };
+
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
@@ -83,9 +90,23 @@ const CategoryAnalytics = ({ bills, categories }) => {
         >
           <Typography variant="subtitle2" gutterBottom>{label}</Typography>
           {payload.map((entry, index) => {
+            if (entry.dataKey === 'income') {
+              return (
+                <Typography 
+                  key={index}
+                  sx={{ 
+                    color: 'success.main',
+                    fontWeight: 'bold',
+                  }}
+                >
+                  Income: {formatWholeAmount(entry.value)}
+                </Typography>
+              );
+            }
             const category = categories.find(
               cat => `cat_${cat.id}` === entry.dataKey
             );
+            if (!category) return null;
             return (
               <Typography 
                 key={index}
@@ -94,7 +115,7 @@ const CategoryAnalytics = ({ bills, categories }) => {
                   fontWeight: 'bold',
                 }}
               >
-                {category.name}: {formatAmount(entry.value)}
+                {category.name}: {formatWholeAmount(entry.value)}
               </Typography>
             );
           })}
@@ -106,17 +127,22 @@ const CategoryAnalytics = ({ bills, categories }) => {
 
   // Calculate monthly averages
   const getMonthlyAverages = () => {
-    const totals = categories.map(category => {
-      const categoryBills = bills.filter(bill => bill.categoryId === category.id);
-      const total = categoryBills.reduce((sum, bill) => sum + Number(bill.amount), 0);
-      const average = total / 12; // Average over 12 months
+    const monthsData = getLast12MonthsData();
+    
+    return categories.map(category => {
+      // Calculate total amount for this category over all months
+      const totalAmount = monthsData.reduce((sum, month) => {
+        return sum + (month[category.name] || 0);
+      }, 0);
+      
+      // Calculate average (total divided by 12 months)
+      const average = totalAmount / 12;
+      
       return {
         ...category,
         average,
       };
-    });
-
-    return totals.sort((a, b) => b.average - a.average);
+    }).sort((a, b) => b.average - a.average); // Sort by average amount descending
   };
 
   const monthlyAverages = getMonthlyAverages();
@@ -127,71 +153,116 @@ const CategoryAnalytics = ({ bills, categories }) => {
         <Typography variant="h6" gutterBottom>
           Category Spending Over Time
         </Typography>
-        <Box sx={{ mb: 2 }}>
-          <ToggleButtonGroup
-            value={selectedCategories}
-            onChange={handleCategoryToggle}
-            aria-label="category selection"
-            size="small"
-          >
-            {categories.map(category => (
-              <ToggleButton 
-                key={category.id} 
-                value={category.id}
-                sx={{ 
-                  borderColor: category.color,
-                  color: selectedCategories.includes(category.id) ? 'white' : category.color,
-                  bgcolor: selectedCategories.includes(category.id) ? category.color : 'transparent',
-                  '&:hover': {
-                    bgcolor: selectedCategories.includes(category.id) 
-                      ? category.color 
-                      : `${category.color}22`,
-                  },
-                }}
+        <Box sx={{ 
+          display: 'flex', 
+          gap: 4,
+          alignItems: 'flex-start',
+        }}>
+          {/* Category Buttons */}
+          <Box sx={{ 
+            display: 'flex', 
+            flexDirection: 'column',
+            gap: 1,
+            minWidth: '200px',
+          }}>
+            <ToggleButtonGroup
+              value={selectedCategories}
+              onChange={handleCategoryToggle}
+              orientation="vertical"
+              aria-label="category selection"
+              exclusive={false}
+              sx={{
+                gap: 1,
+                '& .MuiToggleButton-root': {
+                  mb: 1,
+                  borderRadius: 1,
+                  border: 'none',
+                },
+                '& .MuiToggleButtonGroup-grouped': {
+                  borderRadius: '8px !important',
+                  mx: 0,
+                  border: 'none',
+                },
+              }}
+            >
+              {categories.map(category => (
+                <ToggleButton 
+                  key={category.id} 
+                  value={category.id}
+                  sx={{ 
+                    bgcolor: category.color,
+                    opacity: selectedCategories.includes(category.id) ? 1 : 0.5,
+                    color: 'white',
+                    justifyContent: 'flex-start',
+                    textAlign: 'left',
+                    borderRadius: 1,
+                    '&:hover': {
+                      bgcolor: category.color,
+                      opacity: 0.8,
+                    },
+                    '&.Mui-selected': {
+                      bgcolor: category.color,
+                      opacity: 1,
+                      '&:hover': {
+                        bgcolor: category.color,
+                        opacity: 0.9,
+                      },
+                    },
+                  }}
+                >
+                  {category.name}
+                </ToggleButton>
+              ))}
+            </ToggleButtonGroup>
+          </Box>
+
+          {/* Chart */}
+          <Box sx={{ flex: 1, height: 400 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart 
+                data={data}
+                margin={{ top: 20, right: 30, left: 40, bottom: 5 }}
               >
-                {category.name}
-              </ToggleButton>
-            ))}
-          </ToggleButtonGroup>
-        </Box>
-        <Box sx={{ height: 400 }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data}>
-              <CartesianGrid 
-                strokeDasharray="3 3" 
-                stroke={theme.palette.divider}
-              />
-              <XAxis 
-                dataKey="month"
-                tick={{ fill: theme.palette.text.primary }}
-                stroke={theme.palette.text.primary}
-              />
-              <YAxis 
-                tickFormatter={(value) => formatAmount(value)}
-                tick={{ fill: theme.palette.text.primary }}
-                stroke={theme.palette.text.primary}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend />
-              {categories
-                .filter(category => selectedCategories.includes(category.id))
-                .map(category => (
-                  <Line
-                    key={category.id}
-                    type="monotone"
-                    dataKey={`cat_${category.id}`}
-                    name={category.name}
-                    stroke={category.color}
-                    strokeWidth={2}
-                    dot={{ fill: category.color }}
-                  />
-                ))}
-            </LineChart>
-          </ResponsiveContainer>
+                <CartesianGrid 
+                  strokeDasharray="3 3" 
+                  stroke={theme.palette.divider}
+                />
+                <XAxis 
+                  dataKey="month"
+                  tick={{ fill: theme.palette.text.primary }}
+                  stroke={theme.palette.text.primary}
+                />
+                <YAxis 
+                  tickFormatter={formatWholeAmount}
+                  tick={{ fill: theme.palette.text.primary }}
+                  stroke={theme.palette.text.primary}
+                />
+                <Tooltip 
+                  content={<CustomTooltip />}
+                  cursor={false}
+                />
+                <Legend />
+                {categories
+                  .filter(category => selectedCategories.includes(category.id))
+                  .map(category => (
+                    <Bar
+                      key={category.id}
+                      dataKey={`cat_${category.id}`}
+                      name={category.name}
+                      fill={category.color}
+                      stroke={category.color}
+                      strokeWidth={1}
+                      activeBar={false}
+                    />
+                  ))}
+              </BarChart>
+            </ResponsiveContainer>
+          </Box>
         </Box>
       </Paper>
 
-      <Paper sx={{ p: 3 }}>
+      {/* Monthly Averages Section */}
+      <Paper sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" gutterBottom>
           Monthly Category Averages
         </Typography>
@@ -205,15 +276,28 @@ const CategoryAnalytics = ({ bills, categories }) => {
               key={category.id}
               sx={{
                 p: 2,
-                border: `1px solid ${category.color}`,
-                bgcolor: `${category.color}11`,
+                position: 'relative',
+                display: 'flex',
+                flexDirection: 'column',
+                boxShadow: 1,
               }}
             >
-              <Typography variant="subtitle1" sx={{ color: category.color, fontWeight: 'bold' }}>
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: 8,
+                  right: 8,
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  bgcolor: category.color,
+                }}
+              />
+              <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
                 {category.name}
               </Typography>
-              <Typography variant="h5" sx={{ color: category.color }}>
-                {formatAmount(category.average)}
+              <Typography variant="h5">
+                {formatWholeAmount(category.average)}
               </Typography>
               <Typography variant="caption" color="text.secondary">
                 Average per month

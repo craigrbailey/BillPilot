@@ -4,13 +4,15 @@ import {
   Paper,
   Typography,
   Button,
-  Grid,
-  IconButton,
   List,
   ListItem,
   ListItemText,
   ListItemSecondaryAction,
+  IconButton,
   Chip,
+  Grid,
+  CircularProgress,
+  Alert,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -18,34 +20,30 @@ import {
   Delete as DeleteIcon,
 } from '@mui/icons-material';
 import * as api from '../../utils/api';
+import BillDialog from '../Bills/BillDialog';
+import PayeeDialog from '../Bills/PayeeDialog';
 import { format } from 'date-fns';
 import { formatAmount } from '../../utils/formatters';
-import PayeeDialog from '../Bills/PayeeDialog';
-import BillDialog from '../Bills/BillDialog';
-import BillPaymentDialog from '../Bills/BillPaymentDialog';
-import BillUnpayDialog from '../Bills/BillUnpayDialog';
 
 const Bills = () => {
-  const [payees, setPayees] = useState([]);
   const [bills, setBills] = useState([]);
+  const [payees, setPayees] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [payeeDialog, setPayeeDialog] = useState({ open: false, data: null });
-  const [billDialog, setBillDialog] = useState({ open: false, data: null });
-  const [paymentDialog, setPaymentDialog] = useState({ open: false, bill: null });
-  const [unpayDialog, setUnpayDialog] = useState({ open: false, bill: null });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [billDialog, setBillDialog] = useState({ open: false, data: null });
+  const [payeeDialog, setPayeeDialog] = useState({ open: false, data: null });
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [payeesData, billsData, categoriesData] = await Promise.all([
-        api.fetchPayees(),
+      const [billsData, payeesData, categoriesData] = await Promise.all([
         api.fetchBills(),
+        api.fetchPayees(),
         api.fetchCategories(),
       ]);
-      setPayees(payeesData);
       setBills(billsData);
+      setPayees(payeesData || []);
       setCategories(categoriesData);
       setError(null);
     } catch (err) {
@@ -59,21 +57,6 @@ const Bills = () => {
   useEffect(() => {
     fetchData();
   }, []);
-
-  const handlePayeeSubmit = async (data) => {
-    try {
-      if (payeeDialog.data) {
-        await api.updatePayee(payeeDialog.data.id, data);
-      } else {
-        await api.createPayee(data);
-      }
-      fetchData();
-      setPayeeDialog({ open: false, data: null });
-    } catch (err) {
-      setError('Failed to save payee');
-      console.error(err);
-    }
-  };
 
   const handleBillSubmit = async (data) => {
     try {
@@ -90,15 +73,18 @@ const Bills = () => {
     }
   };
 
-  const handleDeletePayee = async (id) => {
-    if (window.confirm('Are you sure you want to delete this payee? This will also delete all associated bills.')) {
-      try {
-        await api.deletePayee(id);
-        fetchData();
-      } catch (err) {
-        setError('Failed to delete payee');
-        console.error(err);
+  const handlePayeeSubmit = async (data) => {
+    try {
+      if (payeeDialog.data) {
+        await api.updatePayee(payeeDialog.data.id, data);
+      } else {
+        await api.createPayee(data);
       }
+      fetchData();
+      setPayeeDialog({ open: false, data: null });
+    } catch (err) {
+      setError('Failed to save payee');
+      console.error(err);
     }
   };
 
@@ -114,37 +100,37 @@ const Bills = () => {
     }
   };
 
-  const handlePaymentSubmit = async (paymentDate) => {
-    try {
-      await api.updateBill(paymentDialog.bill.id, {
-        ...paymentDialog.bill,
-        isPaid: true,
-        paidDate: paymentDate,
-      });
-      fetchData();
-      setPaymentDialog({ open: false, bill: null });
-    } catch (error) {
-      setError('Failed to mark bill as paid');
-      console.error(error);
+  const handleDeletePayee = async (id) => {
+    if (window.confirm('Are you sure you want to delete this payee?')) {
+      try {
+        await api.deletePayee(id);
+        fetchData();
+      } catch (err) {
+        setError('Failed to delete payee');
+        console.error(err);
+      }
     }
   };
 
-  const handleUnpayBill = async (bill) => {
-    try {
-      await api.updateBill(bill.id, { ...bill, isPaid: false, paidDate: null });
-      fetchData();
-      setUnpayDialog({ open: false, bill: null });
-    } catch (error) {
-      setError('Failed to unmark bill as paid');
-      console.error(error);
-    }
-  };
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ p: 3 }}>
-      <Grid container spacing={3} direction="column">
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
+
+      <Grid container spacing={3}>
         {/* Payees Section */}
-        <Grid item xs={12}>
+        <Grid item xs={12} md={6}>
           <Paper sx={{ p: 2 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
               <Typography variant="h6">Payees</Typography>
@@ -164,14 +150,19 @@ const Bills = () => {
                     secondary={
                       <>
                         <Typography variant="body2">
-                          Expected: {formatAmount(payee.expectedAmount)} ({payee.frequency.toLowerCase()})
+                          Expected: {formatAmount(payee.expectedAmount)} ({payee.frequency?.toLowerCase() || 'monthly'})
                         </Typography>
-                        <Typography variant="body2">
-                          Category: {payee.category.name}
-                        </Typography>
-                        <Typography variant="body2">
-                          Started: {format(new Date(payee.startDate), 'MMM dd, yyyy')}
-                        </Typography>
+                        {payee.category && (
+                          <Chip
+                            label={payee.category.name}
+                            size="small"
+                            sx={{
+                              bgcolor: payee.category.color,
+                              color: 'white',
+                              mt: 1,
+                            }}
+                          />
+                        )}
                       </>
                     }
                   />
@@ -191,20 +182,12 @@ const Bills = () => {
                   </ListItemSecondaryAction>
                 </ListItem>
               ))}
-              {payees.length === 0 && (
-                <ListItem>
-                  <ListItemText
-                    secondary="No payees added yet"
-                    sx={{ textAlign: 'center', fontStyle: 'italic' }}
-                  />
-                </ListItem>
-              )}
             </List>
           </Paper>
         </Grid>
 
         {/* Bills Section */}
-        <Grid item xs={12}>
+        <Grid item xs={12} md={6}>
           <Paper sx={{ p: 2 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
               <Typography variant="h6">Bills</Typography>
@@ -220,7 +203,7 @@ const Bills = () => {
               {bills.map((bill) => (
                 <ListItem key={bill.id} divider>
                   <ListItemText
-                    primary={bill.isOneTime ? bill.payeeName : bill.payee?.name}
+                    primary={bill.name}
                     secondary={
                       <>
                         <Typography variant="body2">
@@ -229,30 +212,21 @@ const Bills = () => {
                         <Typography variant="body2">
                           Due: {format(new Date(bill.dueDate), 'MMM dd, yyyy')}
                         </Typography>
-                        <Typography variant="body2">
-                          Category: {bill.category.name}
-                        </Typography>
-                        {bill.description && (
-                          <Typography variant="body2">
-                            Note: {bill.description}
-                          </Typography>
+                        {bill.category && (
+                          <Chip
+                            label={bill.category.name}
+                            size="small"
+                            sx={{
+                              bgcolor: bill.category.color,
+                              color: 'white',
+                              mt: 1,
+                            }}
+                          />
                         )}
                       </>
                     }
                   />
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Chip
-                      label={bill.isPaid ? "Paid" : "Unpaid"}
-                      size="small"
-                      color={bill.isPaid ? "success" : "warning"}
-                      onClick={() => {
-                        if (bill.isPaid) {
-                          setUnpayDialog({ open: true, bill });
-                        } else {
-                          setPaymentDialog({ open: true, bill });
-                        }
-                      }}
-                    />
+                  <ListItemSecondaryAction>
                     <IconButton
                       edge="end"
                       onClick={() => setBillDialog({ open: true, data: bill })}
@@ -265,30 +239,15 @@ const Bills = () => {
                     >
                       <DeleteIcon />
                     </IconButton>
-                  </Box>
+                  </ListItemSecondaryAction>
                 </ListItem>
               ))}
-              {bills.length === 0 && (
-                <ListItem>
-                  <ListItemText
-                    secondary="No bills recorded yet"
-                    sx={{ textAlign: 'center', fontStyle: 'italic' }}
-                  />
-                </ListItem>
-              )}
             </List>
           </Paper>
         </Grid>
       </Grid>
 
-      <PayeeDialog
-        open={payeeDialog.open}
-        onClose={() => setPayeeDialog({ open: false, data: null })}
-        onSubmit={handlePayeeSubmit}
-        initialData={payeeDialog.data}
-        categories={categories}
-      />
-
+      {/* Dialogs */}
       <BillDialog
         open={billDialog.open}
         onClose={() => setBillDialog({ open: false, data: null })}
@@ -298,18 +257,12 @@ const Bills = () => {
         categories={categories}
       />
 
-      <BillPaymentDialog
-        open={paymentDialog.open}
-        bill={paymentDialog.bill}
-        onClose={() => setPaymentDialog({ open: false, bill: null })}
-        onSubmit={handlePaymentSubmit}
-      />
-
-      <BillUnpayDialog
-        open={unpayDialog.open}
-        bill={unpayDialog.bill}
-        onClose={() => setUnpayDialog({ open: false, bill: null })}
-        onConfirm={() => handleUnpayBill(unpayDialog.bill)}
+      <PayeeDialog
+        open={payeeDialog.open}
+        onClose={() => setPayeeDialog({ open: false, data: null })}
+        onSubmit={handlePayeeSubmit}
+        initialData={payeeDialog.data}
+        categories={categories}
       />
     </Box>
   );

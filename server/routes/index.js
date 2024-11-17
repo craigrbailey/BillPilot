@@ -1,38 +1,23 @@
-import billRoutes from './bills.js';
-import paymentRoutes from './payments.js';
-import categoryRoutes from './categories.js';
-import authRoutes from './auth.js';
-import settingsRoutes from './settings.js';
-import incomeRoutes from './income.js';
-import { authenticateToken } from '../middleware/auth.js';
-import cors from 'cors';
 import express from 'express';
-import { ensureRecurringItems } from '../services/recurringService.js';
+import authRoutes from './auth.js';
+import billRoutes from './bills.js';
+import incomeRoutes from './income.js';
+import categoryRoutes from './categories.js';
+import notificationRoutes from './notifications.js';
+import settingsRoutes from './settings.js';
+import payeeRoutes from './payees.js';
+import recurringRoutes from './recurring.js';
 
-export default function registerRoutes(app) {
-  // Enable CORS and JSON parsing
-  app.use(cors());
-  app.use(express.json());
+const registerRoutes = (app) => {
+  // Mount all routes under /api prefix
+  app.use('/api/auth', authRoutes);
+  app.use('/api/bills', billRoutes);
+  app.use('/api/income', incomeRoutes);
+  app.use('/api/categories', categoryRoutes);
+  app.use('/api/settings/notifications', notificationRoutes);
+  app.use('/api/settings', settingsRoutes);
+  app.use('/api/payees', payeeRoutes);
+  app.use('/api', recurringRoutes);
+};
 
-  // Public routes (no authentication required)
-  app.use('/auth', authRoutes);
-
-  // Protected routes (authentication required)
-  app.use('/bills', authenticateToken, billRoutes);
-  app.use('/payments', authenticateToken, paymentRoutes);
-  app.use('/categories', authenticateToken, categoryRoutes);
-  app.use('/settings', authenticateToken, settingsRoutes);
-  app.use('/income', authenticateToken, incomeRoutes);
-
-  // Add middleware to check recurring items
-  app.use(async (req, res, next) => {
-    if (req.user) {
-      try {
-        await ensureRecurringItems(req.user.id);
-      } catch (error) {
-        console.error('Error checking recurring items:', error);
-      }
-    }
-    next();
-  });
-} 
+export default registerRoutes; 

@@ -116,11 +116,6 @@ const MonthlyComparisonChart = ({ bills, incomes }) => {
         <BarChart 
           data={monthsData}
           margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-          style={{
-            '& .recharts-rectangle.recharts-bar-rectangle:hover': {
-              fill: 'none',
-            },
-          }}
         >
           <XAxis 
             dataKey="name"
