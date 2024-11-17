@@ -24,7 +24,7 @@ A modern, full-stack application for managing bills, tracking payments, and main
 - Record bill payments
 - View payment history
 - Generate payment reports
-- Track overdue payments test
+- Track overdue payments
 - Manage payment schedules
 
 ### Dashboard & Analytics
