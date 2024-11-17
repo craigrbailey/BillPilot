@@ -107,11 +107,50 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 // Payment Routes
 router.post('/:id/pay', authenticateToken, async (req, res) => {
   try {
-    const payment = await billOperations.addPayment(req.user.id, req.params.id, req.body);
-    res.json(payment);
+    const billId = parseInt(req.params.id);
+    const { paymentDate } = req.body;
+    const userId = req.user.id;
+
+    // Verify the bill belongs to the user
+    const bill = await prisma.bill.findFirst({
+      where: {
+        id: billId,
+        userId,
+      },
+    });
+
+    if (!bill) {
+      return res.status(404).json({ error: 'Bill not found' });
+    }
+
+    // Use a transaction to update both bill and create history
+    const result = await prisma.$transaction(async (prisma) => {
+      // Update the bill
+      const updatedBill = await prisma.bill.update({
+        where: { id: billId },
+        data: {
+          isPaid: true,
+          paidDate: new Date(paymentDate),
+        },
+      });
+
+      // Create payment history record
+      const paymentHistory = await prisma.billHistory.create({
+        data: {
+          billId: billId,
+          amount: bill.amount,
+          dueDate: bill.dueDate,
+          paidDate: new Date(paymentDate),
+        },
+      });
+
+      return { bill: updatedBill, history: paymentHistory };
+    });
+
+    res.json(result);
   } catch (error) {
-    console.error('Error adding payment:', error);
-    res.status(500).json({ error: 'Failed to add payment' });
+    console.error('Error marking bill as paid:', error);
+    res.status(500).json({ error: 'Failed to mark bill as paid' });
   }
 });
 
@@ -215,6 +254,34 @@ router.delete('/payments/:id', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error deleting payment:', error);
     res.status(500).json({ error: 'Failed to delete payment' });
+  }
+});
+
+// Add this route to your existing bills routes
+router.get('/payment-history', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const paymentHistory = await prisma.billHistory.findMany({
+      where: {
+        bill: {
+          userId: userId,
+        },
+      },
+      include: {
+        bill: {
+          include: {
+            category: true,
+          },
+        },
+      },
+      orderBy: {
+        paidDate: 'desc',
+      },
+    });
+    res.json(paymentHistory);
+  } catch (error) {
+    console.error('Error fetching payment history:', error);
+    res.status(500).json({ error: 'Failed to fetch payment history' });
   }
 });
 

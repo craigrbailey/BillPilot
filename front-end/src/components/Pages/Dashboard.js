@@ -7,7 +7,9 @@ import {
   Snackbar,
 } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
-import * as api from '../../utils/api';
+import { fetchBills, markBillPaid, markBillUnpaid } from '../../utils/api/billsAPI';
+import { fetchIncomeSources, fetchIncomeEntries } from '../../utils/api/incomeAPI';
+import { checkAuth } from '../../utils/api/authAPI';
 import { useNavigate } from 'react-router-dom';
 import BillPaymentDialog from '../Bills/BillPaymentDialog';
 import BillUnpayDialog from '../Bills/BillUnpayDialog';
@@ -33,6 +35,8 @@ const Dashboard = () => {
     bill: null
   });
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date()));
+  const [incomeSources, setIncomeSources] = useState([]);
+  const [incomeEntries, setIncomeEntries] = useState([]);
   const navigate = useNavigate();
 
   // Get week days for the current week
@@ -50,17 +54,36 @@ const Dashboard = () => {
 
   const fetchData = async () => {
     try {
-      if (!api.checkAuth()) {
+      if (!checkAuth()) {
         return;
       }
 
       setLoading(true);
-      const [billsData, incomesData] = await Promise.all([
-        api.fetchBills(),
-        api.fetchIncomes(),
+      const [billsData, sourceData, entriesData] = await Promise.all([
+        fetchBills(),
+        fetchIncomeSources(),
+        fetchIncomeEntries(),
       ]);
       setBills(billsData);
-      setIncomes(incomesData);
+      setIncomeSources(sourceData);
+      setIncomeEntries(entriesData);
+      
+      // Combine income sources and entries for components that expect the old format
+      const combinedIncomes = [
+        ...sourceData.map(source => ({
+          ...source,
+          isRecurring: true,
+          nextPayDate: source.startDate, // You might want to calculate the actual next pay date
+        })),
+        ...entriesData.map(entry => ({
+          ...entry,
+          isRecurring: false,
+          name: entry.sourceName || (entry.source?.name || 'One-time Income'),
+          nextPayDate: entry.date,
+        }))
+      ];
+      
+      setIncomes(combinedIncomes);
       setError(null);
     } catch (err) {
       if (err.message === 'Authentication required') {
@@ -94,7 +117,7 @@ const Dashboard = () => {
 
   const handlePaymentSubmit = async (paymentDate) => {
     try {
-      const updatedBill = await api.updateBill(paymentDialog.bill.id, {
+      const updatedBill = await markBillPaid(paymentDialog.bill.id, {
         ...paymentDialog.bill,
         isPaid: true,
         paymentDate: paymentDate
@@ -125,7 +148,7 @@ const Dashboard = () => {
 
   const handleUnpayBill = async (bill) => {
     try {
-      const updatedBill = await api.updateBill(bill.id, { 
+      const updatedBill = await markBillUnpaid(bill.id, { 
         ...bill, 
         isPaid: false, 
         paidDate: null 
@@ -171,16 +194,16 @@ const Dashboard = () => {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: 3, height: 'calc(100vh - 88px)' }}>
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
         </Alert>
       )}
 
-      <Grid container spacing={3}>
+      <Grid container spacing={3} sx={{ height: '100%' }}>
         {/* Main Content - Calendar and Chart */}
-        <Grid item xs={12} md={9}>
+        <Grid item xs={12} md={9} sx={{ height: '100%' }}>
           <Grid container spacing={3}>
             {/* Calendar */}
             <Grid item xs={12}>
@@ -213,7 +236,7 @@ const Dashboard = () => {
         </Grid>
 
         {/* Right Column - Financial Overview */}
-        <Grid item xs={12} md={3}>
+        <Grid item xs={12} md={3} sx={{ height: '100%' }}>
           <AnimatePresence mode="wait">
             <motion.div
               key={bills.filter(b => b.isPaid).length}
@@ -221,6 +244,7 @@ const Dashboard = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
+              style={{ height: '100%' }}
             >
               <FinancialOverview
                 bills={bills}

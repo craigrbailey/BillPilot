@@ -14,7 +14,6 @@ import {
   TextField,
   CircularProgress,
   Alert,
-  Tooltip,
   MenuItem,
   Select,
   FormControl,
@@ -22,10 +21,12 @@ import {
 } from '@mui/material';
 import { Delete as DeleteIcon } from '@mui/icons-material';
 import { format } from 'date-fns';
-import * as api from '../../utils/api';
+import { fetchBillPaymentHistory, deletePayment } from '../../utils/api/billsAPI';
+import { fetchCategories } from '../../utils/api/categoryAPI';
 import { formatAmount } from '../../utils/formatters';
 import { useNotification } from '../../contexts/NotificationContext';
 import ConfirmationDialog from '../Common/ConfirmationDialog';
+import StyledTooltip from '../Dashboard/StyledComponents/StyledTooltip';
 
 const PaymentHistory = () => {
   const [payments, setPayments] = useState([]);
@@ -37,17 +38,21 @@ const PaymentHistory = () => {
   const [deleteDialog, setDeleteDialog] = useState({
     open: false,
     paymentId: null,
+    billName: '',
+    amount: 0,
+    date: null,
   });
   const { showNotification } = useNotification();
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [paymentsData, categoriesData] = await Promise.all([
-        api.fetchPaymentHistory(),
-        api.fetchCategories(),
+      const [paymentHistoryData, categoriesData] = await Promise.all([
+        fetchBillPaymentHistory(),
+        fetchCategories(),
       ]);
-      setPayments(paymentsData);
+
+      setPayments(paymentHistoryData);
       setCategories(categoriesData);
       setError(null);
     } catch (err) {
@@ -64,15 +69,43 @@ const PaymentHistory = () => {
 
   const handleDeletePayment = async () => {
     try {
-      await api.deletePayment(deleteDialog.paymentId);
+      await deletePayment(deleteDialog.paymentId);
       await fetchData();
-      setDeleteDialog({ open: false, paymentId: null });
-      showNotification('Payment deleted successfully');
+      setDeleteDialog({ 
+        open: false, 
+        paymentId: null,
+        billName: '',
+        amount: 0,
+        date: null,
+      });
+      showNotification('Payment record deleted successfully', 'success');
     } catch (err) {
-      setError('Failed to delete payment');
-      showNotification('Failed to delete payment', 'error');
+      setError('Failed to delete payment record');
+      showNotification('Failed to delete payment record', 'error');
     }
   };
+
+  const renderTooltipContent = (payment) => (
+    <Box sx={{ p: 1 }}>
+      <Typography variant="subtitle2" gutterBottom>
+        {payment.bill.name}
+      </Typography>
+      <Typography variant="body2">
+        Amount: {formatAmount(payment.amount)}
+      </Typography>
+      <Typography variant="body2">
+        Category: {payment.bill.category.name}
+      </Typography>
+      {payment.bill.description && (
+        <Typography variant="body2">
+          Note: {payment.bill.description}
+        </Typography>
+      )}
+      <Typography variant="body2">
+        Paid on: {format(new Date(payment.paidDate), 'MMM dd, yyyy')}
+      </Typography>
+    </Box>
+  );
 
   const filteredPayments = payments.filter(payment => {
     const matchesSearch = payment.bill.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -185,39 +218,47 @@ const PaymentHistory = () => {
           </TableHead>
           <TableBody>
             {filteredPayments.map((payment) => (
-              <TableRow key={payment.id}>
-                <TableCell>{payment.bill.name}</TableCell>
-                <TableCell>
-                  <Chip 
-                    label={payment.bill.category.name}
-                    size="small"
-                    sx={{ 
-                      backgroundColor: payment.bill.category.color,
-                      color: 'white'
-                    }}
-                  />
-                </TableCell>
-                <TableCell align="right">
-                  {formatAmount(payment.amount)}
-                </TableCell>
-                <TableCell>
-                  {format(new Date(payment.paidDate), 'MMM dd, yyyy')}
-                </TableCell>
-                <TableCell align="right">
-                  <Tooltip title="Delete Payment">
+              <StyledTooltip
+                key={payment.id}
+                title={renderTooltipContent(payment)}
+                placement="left"
+                arrow
+              >
+                <TableRow>
+                  <TableCell>{payment.bill.name}</TableCell>
+                  <TableCell>
+                    <Chip 
+                      label={payment.bill.category.name}
+                      size="small"
+                      sx={{ 
+                        backgroundColor: payment.bill.category.color,
+                        color: 'white'
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell align="right">
+                    {formatAmount(payment.amount)}
+                  </TableCell>
+                  <TableCell>
+                    {format(new Date(payment.paidDate), 'MMM dd, yyyy')}
+                  </TableCell>
+                  <TableCell align="right">
                     <IconButton
                       onClick={() => setDeleteDialog({ 
                         open: true, 
-                        paymentId: payment.id 
+                        paymentId: payment.id,
+                        billName: payment.bill.name,
+                        amount: payment.amount,
+                        date: payment.paidDate,
                       })}
                       color="error"
                       size="small"
                     >
                       <DeleteIcon />
                     </IconButton>
-                  </Tooltip>
-                </TableCell>
-              </TableRow>
+                  </TableCell>
+                </TableRow>
+              </StyledTooltip>
             ))}
           </TableBody>
         </Table>
@@ -225,10 +266,16 @@ const PaymentHistory = () => {
 
       <ConfirmationDialog
         open={deleteDialog.open}
-        onClose={() => setDeleteDialog({ open: false, paymentId: null })}
+        onClose={() => setDeleteDialog({ 
+          open: false, 
+          paymentId: null,
+          billName: '',
+          amount: 0,
+          date: null,
+        })}
         onConfirm={handleDeletePayment}
         title="Delete Payment"
-        message="Are you sure you want to delete this payment? This action cannot be undone."
+        message={`Are you sure you want to delete the payment for "${deleteDialog.billName}" of ${formatAmount(deleteDialog.amount)} made on ${deleteDialog.date ? format(new Date(deleteDialog.date), 'MMM dd, yyyy') : ''}? This will mark the bill as unpaid.`}
       />
     </Box>
   );

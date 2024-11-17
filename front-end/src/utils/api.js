@@ -275,28 +275,14 @@ export const deleteEmailRecipient = async (recipientId) => {
 
 // Income Sources
 export const fetchIncomeSources = async () => {
-  const response = await fetch('/api/income/sources', {
-    method: 'GET',
-    headers: {
-      'Authorization': `Bearer ${localStorage.getItem('token')}`,
-      'Content-Type': 'application/json',
-    },
-  });
-  if (!response.ok) throw new Error('Failed to fetch income sources');
-  return response.json();
+  return fetchWithAuth(`${API_BASE_URL}/income/sources`);
 };
 
 export const createIncomeSource = async (sourceData) => {
-  const response = await fetch('/api/income/sources', {
+  return fetchWithAuth(`${API_BASE_URL}/income/sources`, {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${localStorage.getItem('token')}`,
-      'Content-Type': 'application/json',
-    },
     body: JSON.stringify(sourceData),
   });
-  if (!response.ok) throw new Error('Failed to create income source');
-  return response.json();
 };
 
 export const updateIncomeSource = async (id, sourceData) => {
@@ -313,40 +299,21 @@ export const updateIncomeSource = async (id, sourceData) => {
 };
 
 export const deleteIncomeSource = async (id) => {
-  const response = await fetch(`/api/income/sources/${id}`, {
+  return fetchWithAuth(`${API_BASE_URL}/income/sources/${id}`, {
     method: 'DELETE',
-    headers: {
-      'Authorization': `Bearer ${localStorage.getItem('token')}`,
-    },
   });
-  if (!response.ok) throw new Error('Failed to delete income source');
-  return response.json();
 };
 
 // Income Entries
 export const fetchIncomeEntries = async () => {
-  const response = await fetch('/api/income/entries', {
-    method: 'GET',
-    headers: {
-      'Authorization': `Bearer ${localStorage.getItem('token')}`,
-      'Content-Type': 'application/json',
-    },
-  });
-  if (!response.ok) throw new Error('Failed to fetch income entries');
-  return response.json();
+  return fetchWithAuth(`${API_BASE_URL}/income/entries`);
 };
 
 export const createIncomeEntry = async (entryData) => {
-  const response = await fetch('/api/income/entries', {
+  return fetchWithAuth(`${API_BASE_URL}/income/entries`, {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${localStorage.getItem('token')}`,
-      'Content-Type': 'application/json',
-    },
     body: JSON.stringify(entryData),
   });
-  if (!response.ok) throw new Error('Failed to create income entry');
-  return response.json();
 };
 
 export const updateIncomeEntry = async (id, entryData) => {
@@ -430,5 +397,15 @@ export const testNotificationProvider = async (providerType) => {
   return fetchWithAuth(`${API_BASE_URL}/settings/notifications/test/${providerType}`, {
     method: 'POST',
   });
+};
+
+// Add this to your existing API functions
+export const fetchFuturePayments = async () => {
+  return fetchWithAuth(`${API_BASE_URL}/income/future-payments`);
+};
+
+// Add this function to your existing API functions
+export const fetchBillPaymentHistory = async () => {
+  return fetchWithAuth(`${API_BASE_URL}/bills/payment-history`);
 };
   

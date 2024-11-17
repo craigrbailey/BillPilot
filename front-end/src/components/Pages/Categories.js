@@ -20,6 +20,12 @@ import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import * as api from '../../utils/api';
 import CategoryDialog from '../Categories/CategoryDialog';
 import CategoryAnalytics from '../Categories/CategoryAnalytics';
+import {
+  fetchCategories,
+  createCategory,
+  updateCategory,
+  deleteCategory
+} from '../../utils/api/categoryAPI';
 
 const Categories = () => {
   const [categories, setCategories] = useState([]);
@@ -34,7 +40,7 @@ const Categories = () => {
     try {
       setLoading(true);
       const [categoriesData, billsData] = await Promise.all([
-        api.fetchCategories(),
+        fetchCategories(),
         api.fetchBills(),
       ]);
       setCategories(categoriesData);
@@ -54,7 +60,7 @@ const Categories = () => {
 
   const handleCreateCategory = async (categoryData) => {
     try {
-      await api.createCategory(categoryData);
+      await createCategory(categoryData);
       await fetchData();
       setDialogOpen(false);
     } catch (err) {
@@ -64,7 +70,7 @@ const Categories = () => {
 
   const handleUpdateCategory = async (categoryData) => {
     try {
-      await api.updateCategory(selectedCategory.id, categoryData);
+      await updateCategory(selectedCategory.id, categoryData);
       await fetchData();
       setDialogOpen(false);
       setSelectedCategory(null);
@@ -75,7 +81,7 @@ const Categories = () => {
 
   const handleDeleteCategory = async (category) => {
     try {
-      await api.deleteCategory(category.id);
+      await deleteCategory(category.id);
       await fetchData();
       setDeleteDialog({ open: false, category: null });
     } catch (err) {

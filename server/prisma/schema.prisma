@@ -18,6 +18,8 @@ model User {
   sessions  Session[]
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+  incomeSources IncomeSource[]
+  incomeEntries IncomeEntry[]
 }
 
 model Settings {
@@ -93,4 +95,34 @@ model Session {
   user      User     @relation(fields: [userId], references: [id])
   expiresAt DateTime
   createdAt DateTime @default(now())
+}
+
+model IncomeSource {
+  id          Int           @id @default(autoincrement())
+  userId      Int
+  name        String
+  amount      Float
+  frequency   String
+  startDate   DateTime
+  description String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  user        User          @relation(fields: [userId], references: [id])
+  entries     IncomeEntry[]
+}
+
+model IncomeEntry {
+  id          Int           @id @default(autoincrement())
+  userId      Int
+  sourceId    Int?
+  amount      Float
+  date        DateTime
+  description String?
+  isOneTime   Boolean       @default(false)
+  isPending   Boolean       @default(false)
+  sourceName  String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  user        User          @relation(fields: [userId], references: [id])
+  source      IncomeSource? @relation(fields: [sourceId], references: [id])
 } 

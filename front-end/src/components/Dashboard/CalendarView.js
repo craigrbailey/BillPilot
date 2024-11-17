@@ -8,7 +8,7 @@ import {
   IconButton,
 } from '@mui/material';
 import { StaticDatePicker, PickersDay } from '@mui/x-date-pickers';
-import { format, isSameMonth, isSameYear, setMonth, setYear, addMonths, subMonths } from 'date-fns';
+import { format, isSameMonth, isSameYear, setMonth, setYear, addMonths, subMonths, isSameDay } from 'date-fns';
 import { ChevronLeft as ChevronLeftIcon, ChevronRight as ChevronRightIcon } from '@mui/icons-material';
 
 const MONTHS = [
@@ -47,6 +47,13 @@ const CalendarView = ({
 
   const handleNextMonth = () => {
     onDateChange(addMonths(selectedDate, 1));
+  };
+
+  const getIncomeEventsForDate = (date) => {
+    return incomes.filter(income => {
+      const incomeDate = new Date(income.nextPayDate || income.date);
+      return isSameDay(incomeDate, date);
+    });
   };
 
   return (

@@ -16,6 +16,20 @@ import { Warning as WarningIcon } from '@mui/icons-material';
 import * as api from '../../utils/api';
 import NotificationSettings from '../Settings/NotificationSettings';
 import ThemeToggle from '../Settings/ThemeToggle';
+import {
+  fetchSettings,
+  updateSettings,
+  resetDatabase,
+  testEmailSettings,
+  addEmailRecipient,
+  deleteEmailRecipient
+} from '../../utils/api/settingsAPI';
+import {
+  fetchNotificationSettings,
+  updateNotificationProvider,
+  updateNotificationType,
+  testNotificationProvider
+} from '../../utils/api/notificationAPI';
 
 const Settings = () => {
   const [resetDialog, setResetDialog] = useState(false);

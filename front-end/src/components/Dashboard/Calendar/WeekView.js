@@ -25,6 +25,49 @@ const WeekView = ({
     }
   };
 
+  const renderIncomeTooltipContent = (income) => (
+    <Box sx={{ p: 1 }}>
+      <Typography variant="subtitle2" gutterBottom>
+        {income.name}
+      </Typography>
+      <Typography variant="body2">
+        Amount: {formatAmount(income.amount)}
+      </Typography>
+      {income.isRecurring && (
+        <Typography variant="body2">
+          Frequency: {income.frequency.toLowerCase()}
+        </Typography>
+      )}
+      {income.description && (
+        <Typography variant="body2">
+          Note: {income.description}
+        </Typography>
+      )}
+    </Box>
+  );
+
+  const renderBillTooltipContent = (bill) => (
+    <Box sx={{ p: 1 }}>
+      <Typography variant="subtitle2" gutterBottom>
+        {bill.name}
+      </Typography>
+      <Typography variant="body2">
+        Amount: {formatAmount(bill.amount)}
+      </Typography>
+      <Typography variant="body2">
+        Category: {bill.category.name}
+      </Typography>
+      {bill.description && (
+        <Typography variant="body2">
+          Note: {bill.description}
+        </Typography>
+      )}
+      <Typography variant="body2">
+        Status: {bill.isPaid ? 'Paid' : 'Unpaid'}
+      </Typography>
+    </Box>
+  );
+
   return (
     <Paper sx={{ p: 2, mb: 3 }}>
       {/* Week Navigation Header */}
@@ -105,94 +148,110 @@ const WeekView = ({
                 >
                   {/* Income Items */}
                   {incomeDueToday.map((income) => (
-                    <Box
+                    <StyledTooltip
                       key={income.id}
-                      sx={{
-                        p: 1,
-                        mb: 1,
-                        height: '60px',
-                        borderRadius: 1,
-                        bgcolor: 'background.paper',
-                        display: 'flex',
-                        alignItems: 'center',
-                        position: 'relative',
-                      }}
+                      title={renderIncomeTooltipContent(income)}
+                      placement="right"
+                      arrow
                     >
                       <Box
                         sx={{
-                          position: 'absolute',
-                          top: 8,
-                          right: 8,
-                          width: 8,
-                          height: 8,
-                          borderRadius: '50%',
-                          bgcolor: 'success.main',
+                          p: 1,
+                          mb: 1,
+                          height: '60px',
+                          borderRadius: 1,
+                          bgcolor: 'background.paper',
+                          display: 'flex',
+                          alignItems: 'center',
+                          position: 'relative',
+                          cursor: 'pointer',
+                          '&:hover': {
+                            bgcolor: 'action.hover',
+                          },
                         }}
-                      />
-                      
-                      <Box sx={{ flex: 1 }}>
-                        <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }} noWrap>
-                          {income.name}
-                        </Typography>
-                        <Typography variant="body2" color="success.main" noWrap>
-                          {formatAmount(income.amount)}
-                        </Typography>
+                      >
+                        <Box
+                          sx={{
+                            position: 'absolute',
+                            top: 8,
+                            right: 8,
+                            width: 8,
+                            height: 8,
+                            borderRadius: '50%',
+                            bgcolor: 'success.main',
+                          }}
+                        />
+                        
+                        <Box sx={{ flex: 1 }}>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }} noWrap>
+                            {income.name}
+                          </Typography>
+                          <Typography variant="body2" color="success.main" noWrap>
+                            {formatAmount(income.amount)}
+                          </Typography>
+                        </Box>
                       </Box>
-                    </Box>
+                    </StyledTooltip>
                   ))}
 
                   {/* Bill Items */}
                   {billsDueToday.map((bill) => (
-                    <Box
+                    <StyledTooltip
                       key={bill.id}
-                      sx={{
-                        p: 1,
-                        mb: 1,
-                        height: '60px',
-                        borderRadius: 1,
-                        bgcolor: 'background.paper',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        position: 'relative',
-                        cursor: 'pointer',
-                        '&:hover': {
-                          bgcolor: 'action.hover',
-                        },
-                      }}
+                      title={renderBillTooltipContent(bill)}
+                      placement="right"
+                      arrow
                     >
                       <Box
                         sx={{
-                          position: 'absolute',
-                          top: 8,
-                          right: 8,
-                          width: 8,
-                          height: 8,
-                          borderRadius: '50%',
-                          bgcolor: bill.category.color,
+                          p: 1,
+                          mb: 1,
+                          height: '60px',
+                          borderRadius: 1,
+                          bgcolor: 'background.paper',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          position: 'relative',
+                          cursor: 'pointer',
+                          '&:hover': {
+                            bgcolor: 'action.hover',
+                          },
                         }}
-                      />
-                      
-                      <Box sx={{ flex: 1, mr: 2 }}>
-                        <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }} noWrap>
-                          {bill.name}
-                        </Typography>
-                        <Typography variant="body2" color="error" noWrap>
-                          {formatAmount(bill.amount)}
-                        </Typography>
-                      </Box>
+                      >
+                        <Box
+                          sx={{
+                            position: 'absolute',
+                            top: 8,
+                            right: 8,
+                            width: 8,
+                            height: 8,
+                            borderRadius: '50%',
+                            bgcolor: bill.category.color,
+                          }}
+                        />
+                        
+                        <Box sx={{ flex: 1, mr: 2 }}>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }} noWrap>
+                            {bill.name}
+                          </Typography>
+                          <Typography variant="body2" color="error" noWrap>
+                            {formatAmount(bill.amount)}
+                          </Typography>
+                        </Box>
 
-                      <Chip
-                        label={bill.isPaid ? "Paid" : "Unpaid"}
-                        size="small"
-                        color={bill.isPaid ? "success" : "warning"}
-                        onClick={(e) => handleBillClick(bill, e)}
-                        sx={{ 
-                          height: '24px',
-                          minWidth: '70px',
-                        }}
-                      />
-                    </Box>
+                        <Chip
+                          label={bill.isPaid ? "Paid" : "Unpaid"}
+                          size="small"
+                          color={bill.isPaid ? "success" : "warning"}
+                          onClick={(e) => handleBillClick(bill, e)}
+                          sx={{ 
+                            height: '24px',
+                            minWidth: '70px',
+                          }}
+                        />
+                      </Box>
+                    </StyledTooltip>
                   ))}
                 </Box>
               </Grid>
