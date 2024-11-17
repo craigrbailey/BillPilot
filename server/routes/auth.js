@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 import prisma from '../database/db.js';
 import { addDays } from 'date-fns';
+import logger from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -19,6 +20,7 @@ router.get('/check-default', async (req, res) => {
       defaultEmail: process.env.DEFAULT_ADMIN_EMAIL,
     });
   } catch (error) {
+    logger.error('Check default error:', { error: error.message, stack: error.stack });
     res.status(500).json({ error: error.message });
   }
 });
@@ -34,6 +36,7 @@ router.post('/register', async (req, res) => {
     });
 
     if (existingUser) {
+      logger.error('Register error:', { error: 'Email already registered', stack: error.stack });
       return res.status(400).json({ error: 'Email already registered' });
     }
 
@@ -75,6 +78,7 @@ router.post('/register', async (req, res) => {
       },
     });
   } catch (error) {
+    logger.error('Register error:', { error: error.message, stack: error.stack });
     res.status(500).json({ error: error.message });
   }
 });
@@ -125,6 +129,7 @@ router.post('/login', async (req, res) => {
       isDefaultUser,
     });
   } catch (error) {
+    logger.error('Login error:', { error: error.message, stack: error.stack });
     res.status(500).json({ error: error.message });
   }
 });
@@ -140,6 +145,7 @@ router.post('/logout', async (req, res) => {
     }
     res.json({ message: 'Logged out successfully' });
   } catch (error) {
+    logger.error('Logout error:', { error: error.message, stack: error.stack });
     res.status(500).json({ error: error.message });
   }
 });
