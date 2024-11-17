@@ -1,4 +1,8 @@
-# Bills Tracker Application
+<div align="center">
+  <img src="logo.png" alt="Bills Tracker Logo" width="200" style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 20px; border-radius: 10px;">
+
+  # Bills Tracker Application
+</div>
 
 A modern, full-stack application for managing bills, tracking payments, and maintaining financial organization. This application helps users keep track of their bills, set up recurring payments, and monitor their financial health through intuitive dashboards and reports.
 
