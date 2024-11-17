@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="logo.png" alt="Bills Tracker Logo" width="200" style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 20px; border-radius: 10px;">
+  <img src="logo.png" alt="Bills Tracker Logo" width="200">
 
   # Bill Pilot
 
