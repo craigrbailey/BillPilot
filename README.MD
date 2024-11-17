@@ -5,7 +5,6 @@
 
   [![Status](https://img.shields.io/badge/status-alpha-red)](https://github.com/craigrbailey/BillPilot)
   [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
-  [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](https://github.com/craigrbailey/BillPilot/pulls)
 </div>
 
 > 🚧 **Note:** This project is currently under active development. Features and functionality may change.
