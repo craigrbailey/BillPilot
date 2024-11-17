@@ -2,8 +2,11 @@
   <img src="logo.png" alt="Bills Tracker Logo" width="200" style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 20px; border-radius: 10px;">
 
   # Bill Pilot
+
+  [![Status](https://img.shields.io/badge/status-alpha-red)](https://github.com/craigrbailey/BillPilot)
+  [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+  [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](https://github.com/craigrbailey/BillPilot/pulls)
 </div>
-![Status](https://img.shields.io/badge/status-alpha-red)
 
 > 🚧 **Note:** This project is currently under active development. Features and functionality may change.
 
