@@ -2,6 +2,7 @@ import express from 'express';
 import { authenticateToken } from '../middleware/auth.js';
 import * as billOperations from '../database/billOperations.js';
 import prisma from '../database/db.js';
+import logger from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -11,6 +12,7 @@ router.get('/payees', authenticateToken, async (req, res) => {
     const payees = await billOperations.getPayees(req.user.id);
     res.json(payees);
   } catch (error) {
+    logger.error('Error fetching payees:', { error: error.message, userId: req.user.id, stack: error.stack });
     console.error('Error fetching payees:', error);
     res.status(500).json({ error: 'Failed to fetch payees' });
   }
@@ -21,6 +23,7 @@ router.post('/payees', authenticateToken, async (req, res) => {
     const payee = await billOperations.createPayee(req.user.id, req.body);
     res.status(201).json(payee);
   } catch (error) {
+    
     console.error('Error creating payee:', error);
     res.status(500).json({ error: 'Failed to create payee' });
   }
@@ -34,6 +37,7 @@ router.put('/payees/:id', authenticateToken, async (req, res) => {
     }
     res.json(payee);
   } catch (error) {
+    logger.error('Error updating payee:', { error: error.message, userId: req.user.id, stack: error.stack });
     console.error('Error updating payee:', error);
     res.status(500).json({ error: 'Failed to update payee' });
   }
@@ -44,6 +48,7 @@ router.delete('/payees/:id', authenticateToken, async (req, res) => {
     await billOperations.deletePayee(req.user.id, req.params.id);
     res.json({ message: 'Payee deleted successfully' });
   } catch (error) {
+    logger.error('Error deleting payee:', { error: error.message, userId: req.user.id, stack: error.stack });
     console.error('Error deleting payee:', error);
     res.status(500).json({ error: 'Failed to delete payee' });
   }
@@ -55,6 +60,7 @@ router.post('/payees/:id/generate-bills', authenticateToken, async (req, res) =>
     const bills = await billOperations.generateRecurringBills(req.user.id, req.params.id);
     res.json(bills);
   } catch (error) {
+    logger.error('Error generating bills:', { error: error.message, userId: req.user.id, stack: error.stack });
     console.error('Error generating bills:', error);
     res.status(500).json({ error: 'Failed to generate bills' });
   }
@@ -66,6 +72,7 @@ router.get('/', authenticateToken, async (req, res) => {
     const bills = await billOperations.getBills(req.user.id);
     res.json(bills);
   } catch (error) {
+    logger.error('Error fetching bills:', { error: error.message, userId: req.user.id, stack: error.stack });
     console.error('Error fetching bills:', error);
     res.status(500).json({ error: 'Failed to fetch bills' });
   }
@@ -76,6 +83,7 @@ router.post('/', authenticateToken, async (req, res) => {
     const bill = await billOperations.createBill(req.user.id, req.body);
     res.status(201).json(bill);
   } catch (error) {
+    logger.error('Error creating bill:', { error: error.message, userId: req.user.id, stack: error.stack });
     console.error('Error creating bill:', error);
     res.status(500).json({ error: 'Failed to create bill' });
   }
@@ -89,6 +97,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
     }
     res.json(bill);
   } catch (error) {
+    logger.error('Error updating bill:', { error: error.message, userId: req.user.id, stack: error.stack });
     console.error('Error updating bill:', error);
     res.status(500).json({ error: 'Failed to update bill' });
   }
@@ -99,6 +108,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     await billOperations.deleteBill(req.user.id, req.params.id);
     res.json({ message: 'Bill deleted successfully' });
   } catch (error) {
+    logger.error('Error deleting bill:', { error: error.message, userId: req.user.id, stack: error.stack });
     console.error('Error deleting bill:', error);
     res.status(500).json({ error: 'Failed to delete bill' });
   }
@@ -120,6 +130,7 @@ router.post('/:id/pay', authenticateToken, async (req, res) => {
     });
 
     if (!bill) {
+      logger.error('Bill not found during payment attempt', { billId, userId });
       return res.status(404).json({ error: 'Bill not found' });
     }
 
@@ -159,6 +170,7 @@ router.get('/:id/payments', authenticateToken, async (req, res) => {
     const payments = await billOperations.getBillPayments(req.user.id, req.params.id);
     res.json(payments);
   } catch (error) {
+    logger.error('Error fetching payments:', { error: error.message, userId: req.user.id, stack: error.stack });
     console.error('Error fetching payments:', error);
     res.status(500).json({ error: 'Failed to fetch payments' });
   }
@@ -181,6 +193,7 @@ router.get('/overdue', authenticateToken, async (req, res) => {
     const bills = await billOperations.getOverdueBills(req.user.id);
     res.json(bills);
   } catch (error) {
+    logger.error('Error fetching overdue bills:', { error: error.message, userId: req.user.id, stack: error.stack });
     console.error('Error fetching overdue bills:', error);
     res.status(500).json({ error: 'Failed to fetch overdue bills' });
   }
@@ -209,6 +222,7 @@ router.get('/payments', authenticateToken, async (req, res) => {
 
     res.json(payments);
   } catch (error) {
+    logger.error('Error fetching payment history:', { error: error.message, userId: req.user.id, stack: error.stack });
     console.error('Error fetching payment history:', error);
     res.status(500).json({ error: 'Failed to fetch payment history' });
   }
@@ -252,6 +266,7 @@ router.delete('/payments/:id', authenticateToken, async (req, res) => {
 
     res.json({ message: 'Payment deleted successfully' });
   } catch (error) {
+    logger.error('Error deleting payment:', { error: error.message, userId: req.user.id, stack: error.stack });
     console.error('Error deleting payment:', error);
     res.status(500).json({ error: 'Failed to delete payment' });
   }
@@ -280,6 +295,7 @@ router.get('/payment-history', authenticateToken, async (req, res) => {
     });
     res.json(paymentHistory);
   } catch (error) {
+    logger.error('Error fetching payment history:', { error: error.message, userId: req.user.id, stack: error.stack });
     console.error('Error fetching payment history:', error);
     res.status(500).json({ error: 'Failed to fetch payment history' });
   }
