@@ -1,6 +1,7 @@
 import express from 'express';
 import prisma from '../database/db.js';
 import { authenticateToken } from '../middleware/auth.js';
+import logger from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -13,6 +14,7 @@ router.get('/', authenticateToken, async (req, res) => {
     });
     res.json(categories);
   } catch (error) {
+    logger.error('Error fetching categories:', { error: error.message, userId: req.user.id, stack: error.stack });
     console.error('Error fetching categories:', error);
     res.status(500).json({ error: 'Failed to fetch categories' });
   }
@@ -36,6 +38,7 @@ router.post('/', authenticateToken, async (req, res) => {
     });
     res.json(category);
   } catch (error) {
+    logger.error('Error creating category:', { error: error.message, userId: req.user.id, stack: error.stack });
     console.error('Error creating category:', error);
     res.status(500).json({ error: 'Failed to create category' });
   }
@@ -57,6 +60,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
     });
     res.json(category);
   } catch (error) {
+    logger.error('Error updating category:', { error: error.message, userId: req.user.id, stack: error.stack });
     console.error('Error updating category:', error);
     res.status(500).json({ error: 'Failed to update category' });
   }
@@ -73,6 +77,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     });
     res.json({ message: 'Category deleted successfully' });
   } catch (error) {
+    logger.error('Error deleting category:', { error: error.message, userId: req.user.id, stack: error.stack });
     console.error('Error deleting category:', error);
     res.status(500).json({ error: 'Failed to delete category' });
   }
