@@ -160,7 +160,7 @@ const Dashboard = () => {
     open: false,
     bill: null
   });
-  const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date()));
+  const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 0 }));
   const [incomeSources, setIncomeSources] = useState([]);
   const [incomeEntries, setIncomeEntries] = useState([]);
   const navigate = useNavigate();
@@ -308,7 +308,7 @@ const Dashboard = () => {
   };
 
   const handleWeekChange = (newDate) => {
-    setCurrentWeekStart(startOfWeek(newDate));
+    setCurrentWeekStart(startOfWeek(newDate, { weekStartsOn: 0 }));
   };
 
   // Function to get activity indicators for a specific date
