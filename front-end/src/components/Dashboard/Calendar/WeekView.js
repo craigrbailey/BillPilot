@@ -69,13 +69,12 @@ const WeekView = ({
   );
 
   return (
-    <Paper sx={{ p: 2, mb: 3 }}>
+    <Paper sx={{ p: 2 }}>
       {/* Week Navigation Header */}
       <Box sx={{ 
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center',
-        mb: 2 
       }}>
         <IconButton onClick={() => onWeekChange(subWeeks(weekDays[0], 1))}>
           <ChevronLeft />
@@ -128,7 +127,7 @@ const WeekView = ({
               <Grid item xs key={`items-${day.toString()}`}>
                 <Box
                   sx={{
-                    height: '300px',
+                    height: '200px',
                     overflowY: 'auto',
                     '&::-webkit-scrollbar': {
                       width: '8px',
