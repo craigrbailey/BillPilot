@@ -103,6 +103,7 @@ export const createBill = async (userId, billData) => {
     dueDate,
     categoryId,
     description,
+    imageUrl,
     isOneTime,
     isPaid,
     paidDate,
@@ -116,6 +117,7 @@ export const createBill = async (userId, billData) => {
       dueDate: new Date(dueDate),
       categoryId: parseInt(categoryId),
       description,
+      imageUrl,
       isOneTime: Boolean(isOneTime),
       isPaid: Boolean(isPaid),
       paidDate: paidDate ? new Date(paidDate) : null,
@@ -134,6 +136,7 @@ export const updateBill = async (userId, billId, billData) => {
     dueDate,
     categoryId,
     description,
+    imageUrl,
     isOneTime,
     isPaid,
     paidDate,
@@ -151,6 +154,7 @@ export const updateBill = async (userId, billId, billData) => {
       dueDate: new Date(dueDate),
       categoryId: parseInt(categoryId),
       description,
+      imageUrl,
       isOneTime: Boolean(isOneTime),
       isPaid: Boolean(isPaid),
       paidDate: paidDate ? new Date(paidDate) : null,
@@ -161,7 +165,7 @@ export const updateBill = async (userId, billId, billData) => {
     },
   });
 
-  // If the bill is marked as paid, create a payment history record
+  // Handle payment history if needed
   if (isPaid && paidDate) {
     await prisma.billHistory.create({
       data: {
@@ -367,6 +371,22 @@ export const generateRecurringBills = async (userId, payeeId) => {
   return bills;
 };
 
+export const updateBillImage = async (userId, billId, imageUrl) => {
+  return await prisma.bill.update({
+    where: {
+      id: parseInt(billId),
+      userId,
+    },
+    data: {
+      imageUrl,
+    },
+    include: {
+      category: true,
+      history: true,
+    },
+  });
+};
+
 export default {
   getPayees,
   createPayee,
@@ -380,4 +400,5 @@ export default {
   generateRecurringBills,
   markBillPaid,
   markBillUnpaid,
+  updateBillImage,
 }; 
