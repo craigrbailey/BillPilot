@@ -243,15 +243,11 @@ const Dashboard = () => {
 
   const handlePaymentSubmit = async (paymentDate) => {
     try {
-      const updatedBill = await markBillPaid(paymentDialog.bill.id, {
-        ...paymentDialog.bill,
-        isPaid: true,
-        paymentDate: paymentDate
-      });
+      const updatedBill = await markBillPaid(paymentDialog.bill.id, paymentDate);
 
       // Update bills state without fetching
-      setBills(prevBills =>
-        prevBills.map(bill =>
+      setBills(prevBills => 
+        prevBills.map(bill => 
           bill.id === updatedBill.id ? updatedBill : bill
         )
       );

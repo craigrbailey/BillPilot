@@ -2,12 +2,13 @@ import { Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@mui/
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { TextField } from '@mui/material';
 import { useState } from 'react';
+import { format } from 'date-fns';
 
 const BillPaymentDialog = ({ open, bill, onClose, onSubmit }) => {
   const [paymentDate, setPaymentDate] = useState(new Date());
 
   const handleSubmit = () => {
-    onSubmit(paymentDate);
+    onSubmit(format(paymentDate, "yyyy-MM-dd'T'HH:mm:ss.SSSxxx"));
   };
 
   return (
