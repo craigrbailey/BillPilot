@@ -80,26 +80,50 @@ router.get('/', authenticateToken, async (req, res) => {
 
 router.post('/', authenticateToken, async (req, res) => {
   try {
-    const bill = await billOperations.createBill(req.user.id, req.body);
+    const billData = {
+      ...req.body,
+      userId: req.user.id,
+      imageUrl: req.body.imageUrl || null,
+    };
+    const bill = await billOperations.createBill(req.user.id, billData);
+    logger.info('Bill created successfully', { userId: req.user.id, billId: bill.id });
     res.status(201).json(bill);
   } catch (error) {
     logger.error('Error creating bill:', { error: error.message, userId: req.user.id, stack: error.stack });
-    console.error('Error creating bill:', error);
     res.status(500).json({ error: 'Failed to create bill' });
   }
 });
 
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
-    const bill = await billOperations.updateBill(req.user.id, req.params.id, req.body);
+    const billData = {
+      ...req.body,
+      imageUrl: req.body.imageUrl,
+    };
+    const bill = await billOperations.updateBill(req.user.id, req.params.id, billData);
     if (!bill) {
       return res.status(404).json({ error: 'Bill not found' });
     }
+    logger.info('Bill updated successfully', { userId: req.user.id, billId: bill.id });
     res.json(bill);
   } catch (error) {
     logger.error('Error updating bill:', { error: error.message, userId: req.user.id, stack: error.stack });
-    console.error('Error updating bill:', error);
     res.status(500).json({ error: 'Failed to update bill' });
+  }
+});
+
+router.put('/:id/image', authenticateToken, async (req, res) => {
+  try {
+    const { imageUrl } = req.body;
+    const bill = await billOperations.updateBillImage(req.user.id, req.params.id, imageUrl);
+    if (!bill) {
+      return res.status(404).json({ error: 'Bill not found' });
+    }
+    logger.info('Bill image updated successfully', { userId: req.user.id, billId: bill.id });
+    res.json(bill);
+  } catch (error) {
+    logger.error('Error updating bill image:', { error: error.message, userId: req.user.id, stack: error.stack });
+    res.status(500).json({ error: 'Failed to update bill image' });
   }
 });
 

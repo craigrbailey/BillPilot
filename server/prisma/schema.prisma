@@ -53,6 +53,7 @@ model Bill {
   categoryId  Int
   category    Category  @relation(fields: [categoryId], references: [id])
   description String?
+  imageUrl    String?   // Added field for bill image URL
   isOneTime   Boolean   @default(false)
   isPaid      Boolean   @default(false)
   paidDate    DateTime?
