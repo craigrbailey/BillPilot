@@ -387,8 +387,8 @@ const Dashboard = () => {
   }
 
   return (
-    <Box 
-      sx={{ 
+    <Box
+      sx={{
         height: 'calc(100vh - 88px)',
         p: 3,
         display: 'flex',
@@ -401,10 +401,10 @@ const Dashboard = () => {
         </Alert>
       )}
 
-      <Grid 
-        container 
-        spacing={3} 
-        sx={{ 
+      <Grid
+        container
+        spacing={3}
+        sx={{
           display: 'flex',
           flexDirection: 'row',
           flexGrow: 1,
@@ -412,11 +412,11 @@ const Dashboard = () => {
         }}
       >
         {/* Left Column - Week View, Panels, and Chart */}
-        <Grid 
+        <Grid
           container spacing={2}
-          item  
-          md={9} 
-          sx={{ 
+          item
+          md={9}
+          sx={{
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between',
@@ -441,9 +441,9 @@ const Dashboard = () => {
           <Box>
             <Grid container spacing={2} sx={{ height: '100%' }}>
               <Grid item xs={12} sm={6} md={3}>
-                <Paper 
-                  elevation={3} 
-                  sx={{ 
+                <Paper
+                  elevation={3}
+                  sx={{
                     height: '200px',
                     display: 'flex',
                     flexDirection: 'column'
@@ -453,9 +453,9 @@ const Dashboard = () => {
                 </Paper>
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <Paper 
-                  elevation={3} 
-                  sx={{ 
+                <Paper
+                  elevation={3}
+                  sx={{
                     height: '200px',
                     display: 'flex',
                     flexDirection: 'column'
@@ -465,9 +465,9 @@ const Dashboard = () => {
                 </Paper>
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <Paper 
-                  elevation={3} 
-                  sx={{ 
+                <Paper
+                  elevation={3}
+                  sx={{
                     height: '200px',
                     display: 'flex',
                     flexDirection: 'column'
@@ -477,9 +477,9 @@ const Dashboard = () => {
                 </Paper>
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <Paper 
-                  elevation={3} 
-                  sx={{ 
+                <Paper
+                  elevation={3}
+                  sx={{
                     height: '200px',
                     display: 'flex',
                     flexDirection: 'column'
@@ -493,26 +493,16 @@ const Dashboard = () => {
 
           {/* Chart Container */}
           <Box sx={{ flex: '0 0 300px' }}>
-            <Paper 
-              elevation={3} 
-              sx={{ 
-                height: '100%',
-                p: 2,
-                display: 'flex',
-                flexDirection: 'column'
-              }}
-            >
-              <MonthlyComparisonChart bills={bills} incomes={incomes} />
-            </Paper>
+            <MonthlyComparisonChart bills={bills} incomes={incomes} />
           </Box>
         </Grid>
 
         {/* Right Column - Calendar and Financial Overview */}
-        <Grid 
-          item 
-          xs={12} 
-          md={3} 
-          sx={{ 
+        <Grid
+          item
+          xs={12}
+          md={3}
+          sx={{
             display: 'flex',
             flexDirection: 'column',
             height: '100%',
@@ -520,8 +510,8 @@ const Dashboard = () => {
           }}
         >
           {/* Calendar Container */}
-          <Paper 
-            elevation={3} 
+          <Paper
+            elevation={3}
             sx={{
               bgcolor: 'background.default',
               height: '400px',
@@ -589,9 +579,9 @@ const Dashboard = () => {
                 transition={{ duration: 0.2 }}
                 style={{ height: '100%' }}
               >
-                <Paper 
-                  elevation={3} 
-                  sx={{ 
+                <Paper
+                  elevation={3}
+                  sx={{
                     height: '100%',
                     display: 'flex',
                     flexDirection: 'column'
