@@ -1,9 +1,9 @@
-import { Box, Paper, Typography, Grid, Chip, IconButton } from '@mui/material';
-import { format, isSameDay, addWeeks, subWeeks } from 'date-fns';
+import { Box, Paper, Typography, Grid, useTheme, useMediaQuery } from '@mui/material';
+import { format, isSameDay, addDays } from 'date-fns';
 import StyledTooltip from '../StyledComponents/StyledTooltip';
-import { useTheme } from '@mui/material/styles';
 import { formatAmount } from '../../../utils/formatters';
 import { ChevronLeft, ChevronRight } from '@mui/icons-material';
+import { IconButton } from '@mui/material';
 
 const WeekView = ({ 
   weekDays, 
@@ -15,249 +15,189 @@ const WeekView = ({
   onWeekChange
 }) => {
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-  const handleBillClick = async (bill, event) => {
-    event.stopPropagation();
-    if (bill.isPaid) {
-      onUnpayBill(bill);
-    } else {
-      onMarkBillPaid(bill);
-    }
+  const handlePreviousWeek = () => {
+    const previousWeek = addDays(weekDays[0], -7);
+    onWeekChange(previousWeek);
   };
 
-  const renderIncomeTooltipContent = (income) => (
-    <Box sx={{ p: 1 }}>
-      <Typography variant="subtitle2" gutterBottom>
-        {income.name}
-      </Typography>
-      <Typography variant="body2">
-        Amount: {formatAmount(income.amount)}
-      </Typography>
-      {income.isRecurring && (
-        <Typography variant="body2">
-          Frequency: {income.frequency.toLowerCase()}
-        </Typography>
-      )}
-      {income.description && (
-        <Typography variant="body2">
-          Note: {income.description}
-        </Typography>
-      )}
-    </Box>
-  );
+  const handleNextWeek = () => {
+    const nextWeek = addDays(weekDays[0], 7);
+    onWeekChange(nextWeek);
+  };
 
-  const renderBillTooltipContent = (bill) => (
-    <Box sx={{ p: 1 }}>
-      <Typography variant="subtitle2" gutterBottom>
-        {bill.name}
-      </Typography>
-      <Typography variant="body2">
-        Amount: {formatAmount(bill.amount)}
-      </Typography>
-      <Typography variant="body2">
-        Category: {bill.category.name}
-      </Typography>
-      {bill.description && (
-        <Typography variant="body2">
-          Note: {bill.description}
+  const renderEventBar = (item, index) => {
+    const isIncome = !item.category;
+    const barColor = isIncome ? theme.palette.success.main : item.category.color;
+    
+    const tooltipContent = (
+      <Box sx={{ p: 1 }}>
+        <Typography variant="subtitle2" gutterBottom>
+          {item.name}
         </Typography>
-      )}
-      <Typography variant="body2">
-        Status: {bill.isPaid ? 'Paid' : 'Unpaid'}
-      </Typography>
-    </Box>
-  );
+        <Typography variant="body2">
+          {formatAmount(item.amount)}
+        </Typography>
+        {!isIncome && (
+          <>
+            <Typography variant="body2">
+              Category: {item.category.name}
+            </Typography>
+            <Typography variant="body2">
+              Status: {item.isPaid ? 'Paid' : 'Unpaid'}
+            </Typography>
+          </>
+        )}
+      </Box>
+    );
+
+    return (
+      <StyledTooltip
+        key={`${item.id}-${index}`}
+        title={tooltipContent}
+        placement="top"
+        arrow
+      >
+        <Box
+          onClick={() => !isIncome && (item.isPaid ? onUnpayBill(item) : onMarkBillPaid(item))}
+          sx={{
+            height: '28px',
+            mb: 0.5,
+            px: 1,
+            borderRadius: '4px',
+            backgroundColor: barColor,
+            opacity: item.isPaid ? 0.6 : 1,
+            color: theme.palette.getContrastText(barColor),
+            display: 'flex',
+            alignItems: 'center',
+            cursor: !isIncome ? 'pointer' : 'default',
+            transition: 'all 0.2s',
+            '&:hover': {
+              opacity: !isIncome ? 0.8 : 1,
+              transform: !isIncome ? 'translateY(-1px)' : 'none',
+            },
+            overflow: 'hidden',
+            whiteSpace: 'nowrap',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          <Typography variant="caption" noWrap>
+            {item.name} - {formatAmount(item.amount)}
+          </Typography>
+        </Box>
+      </StyledTooltip>
+    );
+  };
+
+  const renderDayColumn = (day, index) => {
+    const billsDueToday = getItemsForDate(day, bills);
+    const incomeDueToday = getItemsForDate(day, incomes);
+    const allItems = [...incomeDueToday, ...billsDueToday];
+    const isToday = isSameDay(day, new Date());
+
+    return (
+      <Grid 
+        item 
+        xs={12} 
+        sm={true} 
+        key={day.toString()}
+        sx={{
+          borderRight: index < 6 ? 1 : 0,
+          borderColor: 'divider',
+        }}
+      >
+        <Box
+          sx={{
+            p: 1,
+            height: '100%',
+            borderBottom: isToday ? `2px solid ${theme.palette.primary.main}` : 'none',
+          }}
+        >
+          <Typography 
+            variant="subtitle2" 
+            align="center"
+            color={isToday ? 'primary' : 'textPrimary'}
+            sx={{ fontWeight: isToday ? 'bold' : 'normal' }}
+          >
+            {format(day, 'EEE')}
+          </Typography>
+          <Typography 
+            variant="h6" 
+            align="center"
+            color={isToday ? 'primary' : 'textPrimary'}
+            sx={{ fontWeight: isToday ? 'bold' : 'normal' }}
+          >
+            {format(day, 'd')}
+          </Typography>
+          <Box
+            sx={{
+              mt: 1,
+              height: '200px',
+              overflowY: 'auto',
+              overflowX: 'hidden',
+              '&::-webkit-scrollbar': {
+                width: '6px',
+              },
+              '&::-webkit-scrollbar-track': {
+                background: theme.palette.background.default,
+              },
+              '&::-webkit-scrollbar-thumb': {
+                background: theme.palette.divider,
+                borderRadius: '3px',
+              },
+            }}
+          >
+            {allItems.map((item, index) => renderEventBar(item, index))}
+          </Box>
+        </Box>
+      </Grid>
+    );
+  };
 
   return (
-    <Paper sx={{ p: 2 }}>
-      {/* Week Navigation Header */}
-      <Box sx={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-      }}>
-        <IconButton onClick={() => onWeekChange(subWeeks(weekDays[0], 1))}>
+    <Paper 
+      elevation={3} 
+      sx={{ 
+        p: 2,
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
+      <Box 
+        sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          mb: 2,
+        }}
+      >
+        <IconButton onClick={handlePreviousWeek}>
           <ChevronLeft />
         </IconButton>
         <Typography variant="h6">
           {format(weekDays[0], 'MMM d')} - {format(weekDays[6], 'MMM d, yyyy')}
         </Typography>
-        <IconButton onClick={() => onWeekChange(addWeeks(weekDays[0], 1))}>
+        <IconButton onClick={handleNextWeek}>
           <ChevronRight />
         </IconButton>
       </Box>
 
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {/* Days Row */}
-        <Grid container spacing={2}>
-          {weekDays.map((day) => (
-            <Grid item xs key={day.toString()}>
-              <Box 
-                sx={{ 
-                  p: 2,
-                  bgcolor: theme.palette.mode === 'dark' ? 'background.default' : 'background.paper',
-                  textAlign: 'center',
-                  borderBottom: isSameDay(day, new Date()) 
-                    ? '2px solid'
-                    : '2px solid transparent',
-                  borderColor: isSameDay(day, new Date()) 
-                    ? 'primary.main'
-                    : 'transparent',
-                  transition: 'border-color 0.2s',
-                }}
-              >
-                <Typography variant="h6">
-                  {format(day, 'EEE')}
-                </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
-                  {format(day, 'd')}
-                </Typography>
-              </Box>
-            </Grid>
-          ))}
-        </Grid>
-
-        {/* Items Container */}
-        <Grid container spacing={2}>
-          {weekDays.map((day) => {
-            const billsDueToday = getItemsForDate(day, bills);
-            const incomeDueToday = getItemsForDate(day, incomes);
-
-            return (
-              <Grid item xs key={`items-${day.toString()}`}>
-                <Box
-                  sx={{
-                    height: '200px',
-                    overflowY: 'auto',
-                    '&::-webkit-scrollbar': {
-                      width: '8px',
-                    },
-                    '&::-webkit-scrollbar-track': {
-                      background: '#f1f1f1',
-                      borderRadius: '4px',
-                    },
-                    '&::-webkit-scrollbar-thumb': {
-                      background: '#888',
-                      borderRadius: '4px',
-                      '&:hover': {
-                        background: '#555',
-                      },
-                    },
-                  }}
-                >
-                  {/* Income Items */}
-                  {incomeDueToday.map((income) => (
-                    <StyledTooltip
-                      key={income.id}
-                      title={renderIncomeTooltipContent(income)}
-                      placement="right"
-                      arrow
-                    >
-                      <Box
-                        sx={{
-                          p: 1,
-                          mb: 1,
-                          height: '60px',
-                          borderRadius: 1,
-                          bgcolor: 'background.paper',
-                          display: 'flex',
-                          alignItems: 'center',
-                          position: 'relative',
-                          cursor: 'pointer',
-                          '&:hover': {
-                            bgcolor: 'action.hover',
-                          },
-                        }}
-                      >
-                        <Box
-                          sx={{
-                            position: 'absolute',
-                            top: 8,
-                            right: 8,
-                            width: 8,
-                            height: 8,
-                            borderRadius: '50%',
-                            bgcolor: 'success.main',
-                          }}
-                        />
-                        
-                        <Box sx={{ flex: 1 }}>
-                          <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }} noWrap>
-                            {income.name}
-                          </Typography>
-                          <Typography variant="body2" color="success.main" noWrap>
-                            {formatAmount(income.amount)}
-                          </Typography>
-                        </Box>
-                      </Box>
-                    </StyledTooltip>
-                  ))}
-
-                  {/* Bill Items */}
-                  {billsDueToday.map((bill) => (
-                    <StyledTooltip
-                      key={bill.id}
-                      title={renderBillTooltipContent(bill)}
-                      placement="right"
-                      arrow
-                    >
-                      <Box
-                        sx={{
-                          p: 1,
-                          mb: 1,
-                          height: '60px',
-                          borderRadius: 1,
-                          bgcolor: 'background.paper',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          position: 'relative',
-                          cursor: 'pointer',
-                          '&:hover': {
-                            bgcolor: 'action.hover',
-                          },
-                        }}
-                      >
-                        <Box
-                          sx={{
-                            position: 'absolute',
-                            top: 8,
-                            right: 8,
-                            width: 8,
-                            height: 8,
-                            borderRadius: '50%',
-                            bgcolor: bill.category.color,
-                          }}
-                        />
-                        
-                        <Box sx={{ flex: 1, mr: 2 }}>
-                          <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }} noWrap>
-                            {bill.name}
-                          </Typography>
-                          <Typography variant="body2" color="error" noWrap>
-                            {formatAmount(bill.amount)}
-                          </Typography>
-                        </Box>
-
-                        <Chip
-                          label={bill.isPaid ? "Paid" : "Unpaid"}
-                          size="small"
-                          color={bill.isPaid ? "success" : "warning"}
-                          onClick={(e) => handleBillClick(bill, e)}
-                          sx={{ 
-                            height: '24px',
-                            minWidth: '70px',
-                          }}
-                        />
-                      </Box>
-                    </StyledTooltip>
-                  ))}
-                </Box>
-              </Grid>
-            );
-          })}
-        </Grid>
-      </Box>
+      <Grid 
+        container 
+        spacing={0}
+        sx={{ 
+          flexGrow: 1,
+          border: 1,
+          borderColor: 'divider',
+          borderRadius: 1,
+          overflow: 'hidden',
+          flexDirection: isMobile ? 'column' : 'row',
+        }}
+      >
+        {weekDays.map((day, index) => renderDayColumn(day, index))}
+      </Grid>
     </Paper>
   );
 };
