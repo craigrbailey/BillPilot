@@ -19,6 +19,8 @@ import {
   Settings as SettingsIcon,
   Logout as LogoutIcon,
   Payment as PaymentIcon,
+  BarChart as BarChartIcon,
+  Savings as SavingsIcon,
 } from '@mui/icons-material';
 import { Link, useLocation } from 'react-router-dom';
 
@@ -34,6 +36,8 @@ const Sidebar = ({ mobileOpen, handleDrawerToggle, onLogout }) => {
     { text: 'Income', icon: <AttachMoneyIcon />, path: '/income' },
     { text: 'Categories', icon: <CategoryIcon />, path: '/categories' },
     { text: 'Payments', icon: <PaymentIcon />, path: '/payments' },
+    { text: 'Reports', icon: <BarChartIcon />, path: '/reports' },
+    { text: 'Savings', icon: <SavingsIcon />, path: '/savings' },
     { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
   ];
 

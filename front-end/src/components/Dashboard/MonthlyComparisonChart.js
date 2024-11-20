@@ -78,7 +78,6 @@ const MonthlyComparisonChart = ({ bills, incomes }) => {
       return (
         <Box
           sx={{
-            bgcolor: 'background.paper',
             p: 2,
             border: 1,
             borderColor: 'divider',

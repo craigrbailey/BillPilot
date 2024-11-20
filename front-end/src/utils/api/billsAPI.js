@@ -24,10 +24,12 @@ export const deleteBill = async (id) => {
   });
 };
 
-export const markBillPaid = async (billId, paymentDate) => {
+export const markBillPaid = async (billId, paymentData) => {
   return fetchWithAuth(`${API_BASE_URL}/bills/${billId}/pay`, {
-    method: 'PUT',
-    body: JSON.stringify({ paymentDate }),
+    method: 'POST',
+    body: JSON.stringify({
+      paymentDate: paymentData
+    }),
   });
 };
 
