@@ -8,6 +8,8 @@
 </div>
 
 > 🚧 **Note:** This project is currently under active development. Features and functionality may change.
+[![Beta](https://img.shields.io/badge/beta-blue)](https://github.com/craigrbailey/BillPilot)
+
 
 A modern, full-stack application for managing bills, tracking payments, and maintaining financial organization. This application helps users keep track of their bills, set up recurring payments, and monitor their financial health through intuitive dashboards and reports.
 
