@@ -1,14 +1,11 @@
-import { Box, Paper, Typography } from '@mui/material';
-import { Pie } from 'react-chartjs-2';
-import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
+import { Box, Typography } from '@mui/material';
+import { PieChart } from '@mui/x-charts/PieChart';
 import { formatAmount } from '../../../utils/formatters';
-
-ChartJS.register(ArcElement, Tooltip, Legend);
 
 const CategoryBreakdownPanel = ({ bills }) => {
   const categoryTotals = bills.reduce((acc, bill) => {
     const categoryName = bill.category?.name || 'Uncategorized';
-    const categoryColor = bill.category?.color || '#gray';
+    const categoryColor = bill.category?.color || '#808080';
     
     if (!acc[categoryName]) {
       acc[categoryName] = {
@@ -20,49 +17,12 @@ const CategoryBreakdownPanel = ({ bills }) => {
     return acc;
   }, {});
 
-  const data = {
-    labels: Object.keys(categoryTotals),
-    datasets: [{
-      data: Object.values(categoryTotals).map(cat => cat.total),
-      backgroundColor: Object.values(categoryTotals).map(cat => cat.color),
-      borderWidth: 1,
-    }],
-  };
-
-  const options = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: 'right',
-        align: 'center',
-        labels: {
-          boxWidth: 12,
-          padding: 10,
-          font: {
-            size: 10
-          },
-          generateLabels: (chart) => {
-            const datasets = chart.data.datasets;
-            return chart.data.labels.map((label, i) => ({
-              text: `${label} (${formatAmount(datasets[0].data[i])})`,
-              fillStyle: datasets[0].backgroundColor[i],
-              index: i,
-            }));
-          },
-        },
-      },
-      tooltip: {
-        callbacks: {
-          label: (context) => {
-            const label = context.label || '';
-            const value = formatAmount(context.raw);
-            return `${label}: ${value}`;
-          },
-        },
-      },
-    },
-  };
+  const pieChartData = Object.entries(categoryTotals).map(([name, data]) => ({
+    id: name,
+    value: data.total,
+    label: `${name} (${formatAmount(data.total)})`,
+    color: data.color,
+  }));
 
   return (
     <Box sx={{ p: 1.5, height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -74,8 +34,30 @@ const CategoryBreakdownPanel = ({ bills }) => {
         position: 'relative',
         width: '100%',
         height: 'calc(100% - 30px)', // Subtract header height
+        color: 'white',
       }}>
-        <Pie data={data} options={options} />
+        <PieChart
+          series={[
+            {
+              data: pieChartData,
+              highlightScope: { faded: 'global', highlighted: 'item' },
+              faded: { innerRadius: 30, additionalRadius: -30 },
+            },
+          ]}
+          slotProps={{
+            legend: {
+              direction: 'row',
+              position: { vertical: 'bottom', horizontal: 'middle' },
+              padding: 0,
+              labelStyle: {
+                fill: 'white',
+                fontSize: 10,
+              },
+            },
+          }}
+          height={300}
+          margin={{ right: 200 }}
+        />
       </Box>
     </Box>
   );
