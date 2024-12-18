@@ -461,7 +461,8 @@ const Dashboard = () => {
                     flexDirection: 'column'
                   }}
                 >
-                  <CategoryBreakdownPanel bills={bills} />
+                  {/* <CategoryBreakdownPanel bills={bills} /> */}
+                  <ComingSoonPanel />
                 </Paper>
               </Grid>
               <Grid item xs={12} sm={6} md={3}>

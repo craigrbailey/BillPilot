@@ -1,10 +1,9 @@
 generator client {
   provider = "prisma-client-js"
 }
-
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 model User {
@@ -31,14 +30,9 @@ model Settings {
   notifyDaysBefore  Int       @default(1)
   notifyOnPayment   Boolean   @default(true)
   emailEnabled      Boolean   @default(false)
-  emailConfig       Json?     // Store email provider configuration
   pushEnabled       Boolean   @default(false)
-  pushConfig        Json?     // Store push notification configuration
   discordEnabled    Boolean   @default(false)
-  discordConfig     Json?     // Store Discord configuration
   slackEnabled      Boolean   @default(false)
-  slackConfig       Json?     // Store Slack configuration
-  notificationTypes Json?     // Store notification type preferences
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 }
@@ -134,4 +128,4 @@ model IncomeEntry {
   updatedAt   DateTime      @updatedAt
   user        User          @relation(fields: [userId], references: [id])
   source      IncomeSource? @relation(fields: [sourceId], references: [id])
-} 
+}

@@ -56,7 +56,11 @@ const CategoryBreakdownPanel = ({ bills }) => {
             },
           }}
           height={300}
-          margin={{ right: 200 }}
+          sx={
+            {
+              
+            }
+          }
         />
       </Box>
     </Box>
